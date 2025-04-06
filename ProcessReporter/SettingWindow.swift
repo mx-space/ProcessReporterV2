@@ -8,55 +8,48 @@
 import AppKit
 import SnapKit
 
-class SettingWindow: NSObject, NSWindowDelegate {
-    private var window: NSWindow?
-
+class SettingWindow: NSWindow, NSWindowDelegate {
     private let generalVC = PreferencesGeneralViewController()
     private let integrationVC = PreferencesIntegrationViewController()
 
     private let rootViewController = NSViewController()
-
     public static let shared = SettingWindow()
 
     private let defaultFrameSize: NSSize = NSSize(width: 800, height: 600)
 
-    public func createWindow() -> NSWindow {
-        if let existingWindow = window {
-            return existingWindow
-        }
+    convenience init() {
+        self.init(
+            contentRect: .zero, styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        contentViewController = rootViewController
 
         rootViewController.view.frame.size = defaultFrameSize
-        let window = NSWindow(contentViewController: rootViewController)
-        window.styleMask = [.titled, .closable]
-        window.title = "Settings"
-        window.setFrame(.init(origin: .zero, size: defaultFrameSize), display: true)
-        window.delegate = self
+
+        title = "Settings"
+        setFrame(.init(origin: .zero, size: defaultFrameSize), display: true)
+        delegate = self
 
         if let screen = NSScreen.main {
             let screenFrame = screen.frame
-            let windowFrame = window.frame
+            let windowFrame = frame
             let x = screenFrame.midX - windowFrame.width / 2
             let y = screenFrame.midY - windowFrame.height / 2
-            window.setFrameOrigin(NSPoint(x: x, y: y))
+            setFrameOrigin(NSPoint(x: x, y: y))
         }
 
-        self.window = window
         loadView()
         switchToTab(.general)
-        return window
+
     }
 
     func loadView() {
-        guard let window = window else { return }
-
         let toolbar = NSToolbar(identifier: "PreferencesToolbar")
         toolbar.delegate = self
         toolbar.allowsUserCustomization = false
         toolbar.autosavesConfiguration = false
         toolbar.displayMode = .iconAndLabel
         toolbar.selectedItemIdentifier = .general
-        window.toolbarStyle = .preference
-        window.toolbar = toolbar
+        toolbarStyle = .preference
+        self.toolbar = toolbar
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
@@ -100,33 +93,44 @@ class SettingWindow: NSObject, NSWindowDelegate {
 
         rootViewController.addChild(vc)
         rootViewController.view.addSubview(vc.view)
-        window?.toolbar?.selectedItemIdentifier = NSToolbarItem.Identifier(rawValue: tab.rawValue)
-//        NSAnimationContext.runAnimationGroup(
-//            { context in
-//                context.duration = 0.3
-//                context.allowsImplicitAnimation = true
-//
-//                window?.animator().setContentSize(
-//                    ((vc as? SettingWindowProtocol) != nil) ? (vc as! SettingWindowProtocol).frameSize : defaultFrameSize)
-//            }, completionHandler: nil)
+        toolbar?.selectedItemIdentifier = NSToolbarItem.Identifier(rawValue: tab.rawValue)
+        //        NSAnimationContext.runAnimationGroup(
+        //            { context in
+        //                context.duration = 0.3
+        //                context.allowsImplicitAnimation = true
+        //
+        //                window?.animator().setContentSize(
+        //                    ((vc as? SettingWindowProtocol) != nil) ? (vc as! SettingWindowProtocol).frameSize : defaultFrameSize)
+        //            }, completionHandler: nil)
 
-        let targetSize = ((vc as? SettingWindowProtocol) != nil) ? (vc as! SettingWindowProtocol).frameSize : defaultFrameSize
+        let targetSize =
+            ((vc as? SettingWindowProtocol) != nil)
+            ? (vc as! SettingWindowProtocol).frameSize : defaultFrameSize
 
-        if let window = window {
-            
-            // FIXME: Multiple times will become ineffective.
-            window.setFrame(NSRect(
-                x: window.frame.origin.x,
-                y: window.frame.origin.y,
+        // FIXME: Multiple times will become ineffective.
+
+        setFrame(
+            NSRect(
+                x: frame.origin.x,
+                y: frame.origin.y,
                 width: targetSize.width,
                 height: targetSize.height
             ), display: true, animate: true)
-        }
     }
 
     enum TabIdentifier: String {
         case general
         case integration
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "w" {
+            orderOut(nil)
+        }
+    }
+
+    @objc func closeWindow() {
+        orderOut(nil)
     }
 }
 
@@ -134,7 +138,6 @@ extension NSToolbarItem.Identifier {
     static let general = NSToolbarItem.Identifier("general")
     static let integration = NSToolbarItem.Identifier("integration")
 }
-
 
 // MARK: - Toolbar Delegate
 

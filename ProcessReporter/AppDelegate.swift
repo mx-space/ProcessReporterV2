@@ -30,7 +30,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let menu = NSMenu()
 
         menu.addItem(
-            NSMenuItem(title: "Settings", action: #selector(showSettings), keyEquivalent: "s"))
+            NSMenuItem(title: "Settings", action: #selector(showSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q"))
 
@@ -38,7 +38,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func showSettings() {
-        let window = SettingWindow.shared.createWindow()
+        let window = SettingWindow.shared
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
