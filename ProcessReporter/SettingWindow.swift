@@ -15,14 +15,15 @@ class SettingWindow: NSWindow, NSWindowDelegate {
     private let rootViewController = NSViewController()
     public static let shared = SettingWindow()
 
-    private let defaultFrameSize: NSSize = NSSize(width: 800, height: 600)
+    private let defaultFrameSize: NSSize = NSSize(width: 800, height: 0)
 
     // UserDefaults keys for window position and size
     private let windowFrameKey = "SettingWindowFrame"
 
     convenience init() {
         self.init(
-            contentRect: .zero, styleMask: [.titled, .closable], backing: .buffered, defer: false)
+            contentRect: .zero, styleMask: [.titled, .closable, .miniaturizable],
+            backing: .buffered, defer: false)
         contentViewController = rootViewController
 
         rootViewController.view.frame.size = defaultFrameSize
@@ -33,7 +34,7 @@ class SettingWindow: NSWindow, NSWindowDelegate {
         if let savedFrameData = UserDefaults.standard.data(forKey: windowFrameKey),
            let nsValue = try? NSKeyedUnarchiver.unarchivedObject(
                ofClass: NSValue.self, from: savedFrameData),
-           let savedFrame = nsValue.rectValue as NSRect? {
+           var savedFrame = nsValue.rectValue as NSRect? {
             // Check if the saved frame is visible on any current screen
             var isOnScreen = false
             for screen in NSScreen.screens {
@@ -128,28 +129,12 @@ class SettingWindow: NSWindow, NSWindowDelegate {
             make.edges.equalToSuperview()
         }
         toolbar?.selectedItemIdentifier = NSToolbarItem.Identifier(rawValue: tab.rawValue)
-        //        NSAnimationContext.runAnimationGroup(
-        //            { context in
-        //                context.duration = 0.3
-        //                context.allowsImplicitAnimation = true
-        //
-        //                window?.animator().setContentSize(
-        //                    ((vc as? SettingWindowProtocol) != nil) ? (vc as! SettingWindowProtocol).frameSize : defaultFrameSize)
-        //            }, completionHandler: nil)
 
         let targetSize =
             ((vc as? SettingWindowProtocol) != nil)
                 ? (vc as! SettingWindowProtocol).frameSize : defaultFrameSize
 
-        // FIXME: Multiple times will become ineffective.
-
-        setFrame(
-            NSRect(
-                x: frame.origin.x,
-                y: frame.origin.y,
-                width: targetSize.width,
-                height: targetSize.height
-            ), display: true, animate: true)
+        adjustFrameForNewContentSize(targetSize)
     }
 
     enum TabIdentifier: String {
@@ -191,6 +176,45 @@ class SettingWindow: NSWindow, NSWindowDelegate {
         let frameData = try? NSKeyedArchiver.archivedData(
             withRootObject: nsValue, requiringSecureCoding: true)
         UserDefaults.standard.set(frameData, forKey: windowFrameKey)
+    }
+
+    func adjustFrameForNewContentSize(_ contentSize: NSSize) {
+        NSAnimationContext.runAnimationGroup(
+            { context in
+                context.allowsImplicitAnimation = true
+                context.duration = 0.25
+                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+
+                let newWindowSize = frameRect(
+                    forContentRect: CGRect(origin: .zero, size: contentSize)
+                ).size
+                var frame = self.frame
+
+                guard let screen = screen ?? NSScreen.main else { return }
+                let screenFrame = screen.visibleFrame
+
+                // 计算新的窗口位置
+                let newHeight = newWindowSize.height
+
+                // 默认向下调整（保持窗口顶部位置不变）
+                frame.origin.y = frame.origin.y + (frame.height - newHeight)
+
+                // 检查是否会超出屏幕底部
+                if frame.origin.y < screenFrame.origin.y {
+                    // 如果会超出屏幕底部，先将窗口底部对齐到屏幕可见区域底部
+                    let screenBottom = screenFrame.origin.y
+
+                    // 计算需要向上移动的距离
+                    let adjustmentNeeded = frame.origin.y - screenBottom // 这是负值，表示超出的距离
+
+                    // 设置新的 Y 坐标（窗口底部对齐屏幕可见区域底部，然后向上调整超出的距离）
+                    frame.origin.y = self.frame.origin.y + adjustmentNeeded
+                }
+
+                frame.size = newWindowSize
+
+                animator().setFrame(frame, display: true)
+            }, completionHandler: nil)
     }
 }
 

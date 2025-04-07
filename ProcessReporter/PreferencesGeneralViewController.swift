@@ -12,7 +12,7 @@ import SnapKit
 
 class PreferencesGeneralViewController: NSViewController, SettingWindowProtocol {
     private let logger = Logger()
-    final let frameSize: NSSize = NSSize(width: 600, height: 300)
+    final let frameSize: NSSize = NSSize(width: 600, height: 200)
 
     private var gridView: NSGridView!
     private var enabledButton: NSButton!
