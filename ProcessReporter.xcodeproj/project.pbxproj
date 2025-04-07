@@ -15,22 +15,9 @@
 		1FD8C8BD2DA258F3009F6BCB /* ProcessReporter.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ProcessReporter.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		1F1B2FF72DA3C192003F298D /* Exceptions for "ProcessReporter" folder in "ProcessReporter" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 1FD8C8BC2DA258F3009F6BCB /* ProcessReporter */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		1FD8C8BF2DA258F3009F6BCB /* ProcessReporter */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				1F1B2FF72DA3C192003F298D /* Exceptions for "ProcessReporter" folder in "ProcessReporter" target */,
-			);
 			path = ProcessReporter;
 			sourceTree = "<group>";
 		};
