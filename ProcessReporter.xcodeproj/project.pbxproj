@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1F1B2FF52DA3B3AB003F298D /* RxCocoa in Frameworks */ = {isa = PBXBuildFile; productRef = 1F1B2FF42DA3B3AB003F298D /* RxCocoa */; };
 		1FD8C8D62DA27E59009F6BCB /* SnapKit in Frameworks */ = {isa = PBXBuildFile; productRef = 1FD8C8D52DA27E59009F6BCB /* SnapKit */; };
 /* End PBXBuildFile section */
 
@@ -14,9 +15,22 @@
 		1FD8C8BD2DA258F3009F6BCB /* ProcessReporter.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ProcessReporter.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		1F1B2FF72DA3C192003F298D /* Exceptions for "ProcessReporter" folder in "ProcessReporter" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 1FD8C8BC2DA258F3009F6BCB /* ProcessReporter */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		1FD8C8BF2DA258F3009F6BCB /* ProcessReporter */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				1F1B2FF72DA3C192003F298D /* Exceptions for "ProcessReporter" folder in "ProcessReporter" target */,
+			);
 			path = ProcessReporter;
 			sourceTree = "<group>";
 		};
@@ -27,6 +41,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1F1B2FF52DA3B3AB003F298D /* RxCocoa in Frameworks */,
 				1FD8C8D62DA27E59009F6BCB /* SnapKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -71,6 +86,7 @@
 			name = ProcessReporter;
 			packageProductDependencies = (
 				1FD8C8D52DA27E59009F6BCB /* SnapKit */,
+				1F1B2FF42DA3B3AB003F298D /* RxCocoa */,
 			);
 			productName = ProcessReporter;
 			productReference = 1FD8C8BD2DA258F3009F6BCB /* ProcessReporter.app */;
@@ -102,6 +118,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				1FD8C8D42DA27E59009F6BCB /* XCRemoteSwiftPackageReference "SnapKit" */,
+				1F1B2FF32DA3B3AB003F298D /* XCRemoteSwiftPackageReference "RxSwift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1FD8C8BE2DA258F3009F6BCB /* Products */;
@@ -264,6 +281,8 @@
 				DEVELOPMENT_TEAM = 7VYQTBFBS5;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ProcessReporter/Info.plist;
+				INFOPLIST_KEY_LSBackgroundOnly = YES;
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
@@ -292,6 +311,8 @@
 				DEVELOPMENT_TEAM = 7VYQTBFBS5;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ProcessReporter/Info.plist;
+				INFOPLIST_KEY_LSBackgroundOnly = YES;
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
@@ -332,6 +353,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		1F1B2FF32DA3B3AB003F298D /* XCRemoteSwiftPackageReference "RxSwift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ReactiveX/RxSwift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 6.9.0;
+			};
+		};
 		1FD8C8D42DA27E59009F6BCB /* XCRemoteSwiftPackageReference "SnapKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/SnapKit/SnapKit";
@@ -343,6 +372,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		1F1B2FF42DA3B3AB003F298D /* RxCocoa */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1F1B2FF32DA3B3AB003F298D /* XCRemoteSwiftPackageReference "RxSwift" */;
+			productName = RxCocoa;
+		};
 		1FD8C8D52DA27E59009F6BCB /* SnapKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 1FD8C8D42DA27E59009F6BCB /* XCRemoteSwiftPackageReference "SnapKit" */;

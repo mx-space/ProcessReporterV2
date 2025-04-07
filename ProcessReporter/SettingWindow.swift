@@ -124,6 +124,9 @@ class SettingWindow: NSWindow, NSWindowDelegate {
 
         rootViewController.addChild(vc)
         rootViewController.view.addSubview(vc.view)
+        vc.view.snp.makeConstraints { make in
+            make.edges.equalToSuperview()
+        }
         toolbar?.selectedItemIdentifier = NSToolbarItem.Identifier(rawValue: tab.rawValue)
         //        NSAnimationContext.runAnimationGroup(
         //            { context in
