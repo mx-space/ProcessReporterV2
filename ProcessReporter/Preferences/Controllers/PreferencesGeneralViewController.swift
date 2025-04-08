@@ -217,5 +217,7 @@ extension PreferencesGeneralViewController {
     }
 
     @objc func importData() {
+        
+        ToastManager.shared.success("Hello, World!")
     }
 }
