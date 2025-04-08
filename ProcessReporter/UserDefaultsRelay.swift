@@ -75,7 +75,7 @@ protocol UserDefaultsJSONStorable: UserDefaultsStorable, Codable {}
 extension UserDefaultsJSONStorable {
     func toStorable() -> Any? {
         let encoder = JSONEncoder()
-        encoder.outputFormatting = .prettyPrinted
+        encoder.outputFormatting = .sortedKeys
         if let jsonData = try? encoder.encode(self) {
             let jsonString = String(data: jsonData, encoding: .utf8)
             return jsonString ?? ""

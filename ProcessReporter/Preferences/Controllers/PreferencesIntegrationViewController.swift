@@ -26,7 +26,7 @@ enum IntegrationType: String, CaseIterable {
         case .mxSpace:
             return PreferencesIntegrationMixSpaceView()
         case .slack:
-            return NSView() // TODO: Implement Slack integration view
+            return PreferencesIntegrationSlackView()
         }
     }
 }
@@ -75,7 +75,8 @@ extension SidebarViewController: NSTableViewDataSource, NSTableViewDelegate {
     }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int)
-        -> NSView? {
+        -> NSView?
+    {
         let identifier = NSUserInterfaceItemIdentifier("IntegrationCell")
         var cell = tableView.makeView(withIdentifier: identifier, owner: nil) as? NSTableCellView
 
@@ -192,8 +193,8 @@ class PreferencesIntegrationViewController: NSViewController, SettingWindowProto
         fadeOutAnimation.fromValue = 1.0
         fadeOutAnimation.toValue = 0.0
         fadeOutAnimation.duration = 0.2
-        fadeOutAnimation.damping = 12 // 弹簧阻尼，值越大弹性越小
-        fadeOutAnimation.initialVelocity = 5 // 初始速度
+        fadeOutAnimation.damping = 12  // 弹簧阻尼，值越大弹性越小
+        fadeOutAnimation.initialVelocity = 5  // 初始速度
         fadeOutAnimation.isRemovedOnCompletion = false
         fadeOutAnimation.fillMode = .forwards
 
@@ -219,7 +220,7 @@ class PreferencesIntegrationViewController: NSViewController, SettingWindowProto
             fadeInAnimation.fillMode = .forwards
 
             newView.layer?.add(fadeInAnimation, forKey: "fadeIn")
-            newView.alphaValue = 1 // 设置最终状态
+            newView.alphaValue = 1  // 设置最终状态
         }
     }
 }

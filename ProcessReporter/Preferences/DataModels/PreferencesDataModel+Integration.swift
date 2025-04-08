@@ -16,7 +16,16 @@ struct MixSpaceIntegration: UserDefaultsJSONStorable {
     var requestMethod: String = "POST"
 }
 
+struct SlackIntegration: UserDefaultsJSONStorable {
+    var isEnabled: Bool = false
+    var apiToken: String = ""
+    var customEmoji: String = ""
+    var customStatusText: String = ""
+}
+
 extension PreferencesDataModel {
     @UserDefaultsRelay("mixSpaceIntegration", defaultValue: MixSpaceIntegration())
     static var mixSpaceIntegration: BehaviorRelay<MixSpaceIntegration>
+    @UserDefaultsRelay("slackIntegration", defaultValue: SlackIntegration())
+    static var slackIntegration: BehaviorRelay<SlackIntegration>
 }

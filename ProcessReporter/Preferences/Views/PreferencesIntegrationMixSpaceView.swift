@@ -8,9 +8,7 @@
 import AppKit
 import SnapKit
 
-class PreferencesIntegrationMixSpaceView: NSView {
-    private var gridView: NSGridView!
-
+class PreferencesIntegrationMixSpaceView: IntegrationView {
     // Controls
     private let enabledButton: NSButton
     private let endpointInput: NSTextField
@@ -81,18 +79,7 @@ class PreferencesIntegrationMixSpaceView: NSView {
     }
 
     private func setupGridView() {
-        gridView = NSGridView()
-        gridView.translatesAutoresizingMaskIntoConstraints = false
-        gridView.rowSpacing = 16
-        gridView.columnSpacing = 12
-
-        addSubview(gridView)
-
-        gridView.snp.makeConstraints { make in
-            make.centerX.equalToSuperview()
-            make.top.equalToSuperview().offset(20)
-            make.width.lessThanOrEqualToSuperview().inset(40)
-        }
+        setupUI()
 
         // Enabled row
         createRow(
@@ -126,25 +113,5 @@ class PreferencesIntegrationMixSpaceView: NSView {
         buttonStack.addArrangedSubview(saveButton)
         gridView.addRow(with: [NSView(), buttonStack])
         gridView.cell(for: buttonStack)?.xPlacement = .trailing
-    }
-
-    private func createRow(leftView: NSView, rightView: NSView) {
-        gridView.addRow(with: [leftView, rightView])
-        gridView.cell(for: leftView)?.xPlacement = .trailing
-
-        // 设置行高
-        let row = gridView.row(at: gridView.numberOfRows - 1)
-        row.height = 22 // 设置统一的行高
-
-        // 设置右侧控件的宽度约束
-        if rightView is NSTextField {
-            rightView.snp.makeConstraints { make in
-                make.width.greaterThanOrEqualTo(200)
-            }
-        } else if rightView is NSPopUpButton {
-            rightView.snp.makeConstraints { make in
-                make.width.equalTo(120)
-            }
-        }
     }
 }
