@@ -1,3 +1,5 @@
+import Foundation
+import RxCocoa
 //
 //  UserDefaultsRelay.swift
 //  ProcessReporter
@@ -5,8 +7,6 @@
 //  Created by Innei on 2025/4/8.
 //
 import RxSwift
-import RxCocoa
-import Foundation
 
 protocol UserDefaultsStorable {
     func toStorable() -> Any?
@@ -31,7 +31,8 @@ struct UserDefaultsRelay<T> {
             // 使用类型擦除方式访问协议实例
             let valueType = type(of: storable)
             if let storageValue = UserDefaults.standard.object(forKey: key),
-               let value = valueType.fromStorable(storageValue) as? T {
+                let value = valueType.fromStorable(storageValue) as? T
+            {
                 savedValue = value
             } else {
                 savedValue = defaultValue
@@ -45,7 +46,7 @@ struct UserDefaultsRelay<T> {
 
         // 观察变化并保存到 UserDefaults
         relay
-            .skip(1) // 跳过初始值
+            .skip(1)  // 跳过初始值
             .subscribe(onNext: { value in
                 if let storable = value as? any UserDefaultsStorable {
                     // 使用协议方法转换为可存储类型
@@ -66,5 +67,30 @@ struct UserDefaultsRelay<T> {
 
     var wrappedValue: BehaviorRelay<T> {
         return relay
+    }
+}
+
+protocol UserDefaultsJSONStorable: UserDefaultsStorable, Codable {}
+
+extension UserDefaultsJSONStorable {
+    func toStorable() -> Any? {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .prettyPrinted
+        if let jsonData = try? encoder.encode(self) {
+            let jsonString = String(data: jsonData, encoding: .utf8)
+            return jsonString ?? ""
+        }
+        return nil
+    }
+
+    static func fromStorable(_ value: Any?) -> Self? {
+        guard let value = value as? String else {
+            return nil
+        }
+        let decoder = JSONDecoder()
+        if let jsonData = value.data(using: .utf8) {
+            return try? decoder.decode(Self.self, from: jsonData)
+        }
+        return nil
     }
 }
