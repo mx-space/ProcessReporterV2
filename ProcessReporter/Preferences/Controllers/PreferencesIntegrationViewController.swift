@@ -20,6 +20,15 @@ enum IntegrationType: String, CaseIterable {
             return NSImage(named: "slack")!
         }
     }
+
+    func view() -> NSView {
+        switch self {
+        case .mxSpace:
+            return PreferencesIntegrationMixSpaceView()
+        case .slack:
+            return NSView() // TODO: Implement Slack integration view
+        }
+    }
 }
 
 class SidebarViewController: NSViewController {
@@ -52,13 +61,11 @@ class SidebarViewController: NSViewController {
         view = NSView()
         view.addSubview(scrollView)
 
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: view.topAnchor),
-            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-        ])
+        scrollView.snp.makeConstraints { make in
+            make.edges.equalToSuperview()
+        }
+
+        tableView.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
     }
 }
 
@@ -136,11 +143,10 @@ class PreferencesIntegrationViewController: NSViewController, SettingWindowProto
         SidebarViewController()
     }()
 
-    private lazy var contentViewController: NSViewController = {
-        let vc = NSViewController()
-        vc.view = NSView()
-        vc.view.wantsLayer = true
-        return vc
+    private lazy var rightSplitViewItem: NSSplitViewItem = {
+        let item = NSSplitViewItem(viewController: NSViewController())
+        item.canCollapse = false
+        return item
     }()
 
     override func loadView() {
@@ -153,23 +159,16 @@ class PreferencesIntegrationViewController: NSViewController, SettingWindowProto
         let sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebarViewController)
         sidebarItem.canCollapse = false
         sidebarItem.minimumThickness = 200
-        sidebarItem.maximumThickness = 300
-
-        let contentItem = NSSplitViewItem(viewController: contentViewController)
+        sidebarItem.maximumThickness = 200
 
         splitViewController.addSplitViewItem(sidebarItem)
-        splitViewController.addSplitViewItem(contentItem)
+        splitViewController.addSplitViewItem(rightSplitViewItem)
 
-        // 设置分栏视图约束
-        splitViewController.view.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            splitViewController.view.topAnchor.constraint(equalTo: view.topAnchor),
-            splitViewController.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            splitViewController.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            splitViewController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-        ])
+        splitViewController.view.snp.makeConstraints { make in
+            make.edges.equalToSuperview()
+        }
 
-        // 监听列表选择变化
+        updateContentView(for: IntegrationType.allCases[0])
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleIntegrationSelection(_:)),
@@ -185,7 +184,42 @@ class PreferencesIntegrationViewController: NSViewController, SettingWindowProto
     }
 
     private func updateContentView(for type: IntegrationType) {
-        // 这里可以根据不同的集成类型显示不同的配置视图
-        // TODO: 实现具体的配置视图切换逻辑
+        let newView = type.view()
+        newView.alphaValue = 0
+
+        // 为当前视图创建淡出动画
+        let fadeOutAnimation = CASpringAnimation(keyPath: "opacity")
+        fadeOutAnimation.fromValue = 1.0
+        fadeOutAnimation.toValue = 0.0
+        fadeOutAnimation.duration = 0.2
+        fadeOutAnimation.damping = 12 // 弹簧阻尼，值越大弹性越小
+        fadeOutAnimation.initialVelocity = 5 // 初始速度
+        fadeOutAnimation.isRemovedOnCompletion = false
+        fadeOutAnimation.fillMode = .forwards
+
+        rightSplitViewItem.viewController.view.layer?.add(fadeOutAnimation, forKey: "fadeOut")
+
+        // 延迟一小段时间后切换视图并执行淡入动画
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            guard let self = self else { return }
+            self.splitViewController.removeSplitViewItem(self.rightSplitViewItem)
+            self.rightSplitViewItem.viewController.view.removeFromSuperview()
+
+            self.rightSplitViewItem.viewController.view = newView
+            self.splitViewController.addSplitViewItem(self.rightSplitViewItem)
+
+            // 为新视图创建淡入动画
+            let fadeInAnimation = CASpringAnimation(keyPath: "opacity")
+            fadeInAnimation.fromValue = 0.0
+            fadeInAnimation.toValue = 1.0
+            fadeInAnimation.duration = 0.2
+            fadeInAnimation.damping = 12
+            fadeInAnimation.initialVelocity = 5
+            fadeInAnimation.isRemovedOnCompletion = false
+            fadeInAnimation.fillMode = .forwards
+
+            newView.layer?.add(fadeInAnimation, forKey: "fadeIn")
+            newView.alphaValue = 1 // 设置最终状态
+        }
     }
 }

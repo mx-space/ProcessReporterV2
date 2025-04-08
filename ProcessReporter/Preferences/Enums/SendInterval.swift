@@ -33,11 +33,14 @@ enum SendInterval: Int, CaseIterable {
 }
 
 extension SendInterval: UserDefaultsStorable {
-    func toStorable() -> Any {
+    func toStorable() -> Any? {
         return rawValue
     }
 
-    static func fromStorable(_ value: Any) -> SendInterval? {
+    static func fromStorable(_ value: Any?) -> SendInterval? {
+        guard let value = value else {
+            return nil
+        }
         if let intValue = value as? Int {
             return SendInterval(rawValue: intValue)
         }

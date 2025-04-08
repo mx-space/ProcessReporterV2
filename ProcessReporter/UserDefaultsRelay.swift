@@ -9,8 +9,8 @@ import RxCocoa
 import Foundation
 
 protocol UserDefaultsStorable {
-    func toStorable() -> Any
-    static func fromStorable(_ value: Any) -> Self?
+    func toStorable() -> Any?
+    static func fromStorable(_ value: Any?) -> Self?
 }
 
 @propertyWrapper

@@ -32,9 +32,10 @@ class SettingWindow: NSWindow, NSWindowDelegate {
 
         // Try to restore saved position and size
         if let savedFrameData = UserDefaults.standard.data(forKey: windowFrameKey),
-           let nsValue = try? NSKeyedUnarchiver.unarchivedObject(
-               ofClass: NSValue.self, from: savedFrameData),
-           var savedFrame = nsValue.rectValue as NSRect? {
+            let nsValue = try? NSKeyedUnarchiver.unarchivedObject(
+                ofClass: NSValue.self, from: savedFrameData),
+            var savedFrame = nsValue.rectValue as NSRect?
+        {
             // Check if the saved frame is visible on any current screen
             var isOnScreen = false
             for screen in NSScreen.screens {
@@ -108,7 +109,6 @@ class SettingWindow: NSWindow, NSWindowDelegate {
     @objc private func switchToIntegration() {
         switchToTab(.integration)
     }
-
     private func switchToTab(_ tab: TabIdentifier) {
         let vc: NSViewController
 
@@ -117,24 +117,59 @@ class SettingWindow: NSWindow, NSWindowDelegate {
         case .integration: vc = integrationVC
         }
 
-        // Remove existing view controllers
+        // 为当前视图创建淡出动画
         for child in rootViewController.children {
-            child.view.removeFromSuperview()
-            child.removeFromParent()
+            let fadeOutAnimation = CASpringAnimation(keyPath: "opacity")
+            fadeOutAnimation.fromValue = 1.0
+            fadeOutAnimation.toValue = 0.0
+            fadeOutAnimation.duration = 0.2
+            fadeOutAnimation.damping = 12
+            fadeOutAnimation.initialVelocity = 5
+            fadeOutAnimation.isRemovedOnCompletion = false
+            fadeOutAnimation.fillMode = .forwards
+
+            child.view.layer?.add(fadeOutAnimation, forKey: "fadeOut")
         }
 
-        rootViewController.addChild(vc)
-        rootViewController.view.addSubview(vc.view)
-        vc.view.snp.makeConstraints { make in
-            make.edges.equalToSuperview()
+        // 延迟一小段时间后切换视图
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            guard let self = self else { return }
+
+            // Remove existing view controllers
+            for child in self.rootViewController.children {
+                child.view.removeFromSuperview()
+                child.removeFromParent()
+            }
+
+            // 准备新视图
+            vc.view.alphaValue = 0
+            self.rootViewController.addChild(vc)
+            self.rootViewController.view.addSubview(vc.view)
+            vc.view.snp.makeConstraints { make in
+                make.edges.equalToSuperview()
+            }
+
+            // 为新视图创建淡入动画
+            let fadeInAnimation = CASpringAnimation(keyPath: "opacity")
+            fadeInAnimation.fromValue = 0.0
+            fadeInAnimation.toValue = 1.0
+            fadeInAnimation.duration = 0.2
+            fadeInAnimation.damping = 12
+            fadeInAnimation.initialVelocity = 5
+            fadeInAnimation.isRemovedOnCompletion = false
+            fadeInAnimation.fillMode = .forwards
+
+            vc.view.layer?.add(fadeInAnimation, forKey: "fadeIn")
+            vc.view.alphaValue = 1
+
+            self.toolbar?.selectedItemIdentifier = NSToolbarItem.Identifier(rawValue: tab.rawValue)
+
+            let targetSize =
+                ((vc as? SettingWindowProtocol) != nil)
+                ? (vc as! SettingWindowProtocol).frameSize : self.defaultFrameSize
+
+            self.adjustFrameForNewContentSize(targetSize)
         }
-        toolbar?.selectedItemIdentifier = NSToolbarItem.Identifier(rawValue: tab.rawValue)
-
-        let targetSize =
-            ((vc as? SettingWindowProtocol) != nil)
-                ? (vc as! SettingWindowProtocol).frameSize : defaultFrameSize
-
-        adjustFrameForNewContentSize(targetSize)
     }
 
     enum TabIdentifier: String {
@@ -205,7 +240,7 @@ class SettingWindow: NSWindow, NSWindowDelegate {
                     let screenBottom = screenFrame.origin.y
 
                     // 计算需要向上移动的距离
-                    let adjustmentNeeded = frame.origin.y - screenBottom // 这是负值，表示超出的距离
+                    let adjustmentNeeded = frame.origin.y - screenBottom  // 这是负值，表示超出的距离
 
                     // 设置新的 Y 坐标（窗口底部对齐屏幕可见区域底部，然后向上调整超出的距离）
                     frame.origin.y = self.frame.origin.y + adjustmentNeeded
