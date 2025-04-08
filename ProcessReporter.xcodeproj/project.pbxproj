@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		1F1B2FF52DA3B3AB003F298D /* RxCocoa in Frameworks */ = {isa = PBXBuildFile; productRef = 1F1B2FF42DA3B3AB003F298D /* RxCocoa */; };
 		1F1B30112DA3CAAE003F298D /* Alamofire in Frameworks */ = {isa = PBXBuildFile; productRef = 1F1B30102DA3CAAE003F298D /* Alamofire */; };
+		1F9D2F892DA570CF00273B09 /* Frostflake in Frameworks */ = {isa = PBXBuildFile; productRef = 1F9D2F882DA570CF00273B09 /* Frostflake */; };
 		1FD8C8D62DA27E59009F6BCB /* SnapKit in Frameworks */ = {isa = PBXBuildFile; productRef = 1FD8C8D52DA27E59009F6BCB /* SnapKit */; };
 /* End PBXBuildFile section */
 
@@ -45,6 +46,7 @@
 				1F1B30112DA3CAAE003F298D /* Alamofire in Frameworks */,
 				1F1B2FF52DA3B3AB003F298D /* RxCocoa in Frameworks */,
 				1FD8C8D62DA27E59009F6BCB /* SnapKit in Frameworks */,
+				1F9D2F892DA570CF00273B09 /* Frostflake in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -90,6 +92,7 @@
 				1FD8C8D52DA27E59009F6BCB /* SnapKit */,
 				1F1B2FF42DA3B3AB003F298D /* RxCocoa */,
 				1F1B30102DA3CAAE003F298D /* Alamofire */,
+				1F9D2F882DA570CF00273B09 /* Frostflake */,
 			);
 			productName = ProcessReporter;
 			productReference = 1FD8C8BD2DA258F3009F6BCB /* ProcessReporter_DEV.app */;
@@ -123,6 +126,7 @@
 				1FD8C8D42DA27E59009F6BCB /* XCRemoteSwiftPackageReference "SnapKit" */,
 				1F1B2FF32DA3B3AB003F298D /* XCRemoteSwiftPackageReference "RxSwift" */,
 				1F1B300F2DA3CAAE003F298D /* XCRemoteSwiftPackageReference "Alamofire" */,
+				1F9D2F872DA570CF00273B09 /* XCRemoteSwiftPackageReference "package-frostflake" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1FD8C8BE2DA258F3009F6BCB /* Products */;
@@ -375,6 +379,14 @@
 				minimumVersion = 5.10.2;
 			};
 		};
+		1F9D2F872DA570CF00273B09 /* XCRemoteSwiftPackageReference "package-frostflake" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ordo-one/package-frostflake";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 6.0.0;
+			};
+		};
 		1FD8C8D42DA27E59009F6BCB /* XCRemoteSwiftPackageReference "SnapKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/SnapKit/SnapKit";
@@ -395,6 +407,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 1F1B300F2DA3CAAE003F298D /* XCRemoteSwiftPackageReference "Alamofire" */;
 			productName = Alamofire;
+		};
+		1F9D2F882DA570CF00273B09 /* Frostflake */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1F9D2F872DA570CF00273B09 /* XCRemoteSwiftPackageReference "package-frostflake" */;
+			productName = Frostflake;
 		};
 		1FD8C8D52DA27E59009F6BCB /* SnapKit */ = {
 			isa = XCSwiftPackageProductDependency;

@@ -12,7 +12,7 @@ import SnapKit
 
 class PreferencesGeneralViewController: NSViewController, SettingWindowProtocol {
     private let logger = Logger()
-    final let frameSize: NSSize = NSSize(width: 600, height: 200)
+    final let frameSize: NSSize = NSSize(width: 600, height: 250)
 
     private var gridView: NSGridView!
     private var enabledButton: NSButton!
@@ -27,7 +27,7 @@ class PreferencesGeneralViewController: NSViewController, SettingWindowProtocol 
     override func loadView() {
         super.loadView()
         view.frame = NSRect(origin: .zero, size: frameSize)
-        setupGridView()
+        setupUI()
     }
 
     override func viewWillAppear() {
@@ -43,9 +43,8 @@ class PreferencesGeneralViewController: NSViewController, SettingWindowProtocol 
         startupButton.state = checkWasLaunchedAtLogin() ? .on : .off
     }
 
-    private func setupGridView() {
+    private func setupUI() {
         gridView = NSGridView()
-        gridView.translatesAutoresizingMaskIntoConstraints = false
         gridView.rowSpacing = 16
         gridView.columnSpacing = 12
 
@@ -84,14 +83,52 @@ class PreferencesGeneralViewController: NSViewController, SettingWindowProtocol 
         intervalPopup.action = #selector(switchInterval)
         createRow(
             leftView: NSTextField(labelWithString: "Send Interval:"), rightView: intervalPopup)
+
+        // Separator
+        let separator = NSView()
+        separator.wantsLayer = true
+        separator.layer?.backgroundColor = NSColor.separatorColor.cgColor
+        separator.snp.makeConstraints { make in
+            make.height.equalTo(1)
+        }
+        // 添加分隔符行并设置为跨列
+        gridView.addRow(with: [separator])
+        gridView.row(at: gridView.numberOfRows - 1).mergeCells(in: NSRange(location: 0, length: 2))
+
+        // Data Control Stack
+        let dataControlStackView = NSStackView()
+        dataControlStackView.orientation = .horizontal
+        dataControlStackView.spacing = 8
+
+        // Data Control Label
+        let dataControlLabel = NSTextField(labelWithString: "Setting Backup:")
+        dataControlLabel.isEditable = false
+
+        // Import Data button
+        let dataImportButton = NSButton(
+            title: "Import Settings", target: self, action: #selector(importData))
+        dataImportButton.bezelStyle = .rounded
+        dataControlStackView.addArrangedSubview(dataImportButton)
+
+        // Export Data button
+        let dataExportButton = NSButton(
+            title: "Export Settings", target: self, action: #selector(exportData))
+        dataExportButton.bezelStyle = .rounded
+        dataControlStackView.addArrangedSubview(dataExportButton)
+
+        // 将整个 stack 添加到 gridView 中
+        createRow(leftView: dataControlLabel, rightView: dataControlStackView)
     }
 
     private func checkWasLaunchedAtLogin() -> Bool {
         let event = NSAppleEventManager.shared().currentAppleEvent
         return event?.eventID == kAEOpenApplication
-            && event?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
+            && event?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue
+            == keyAELaunchedAsLogInItem
     }
 }
+
+// MARK: UI Utils
 
 extension PreferencesGeneralViewController {
     private func createRow(leftView: NSView, rightView: NSView) {
@@ -99,6 +136,8 @@ extension PreferencesGeneralViewController {
         gridView.cell(for: leftView)?.xPlacement = .trailing
     }
 }
+
+// MARK: Actions
 
 extension PreferencesGeneralViewController {
     @objc private func switchInterval(sender: NSPopUpButton) {
@@ -129,7 +168,54 @@ extension PreferencesGeneralViewController {
                 try SMAppService.mainApp.unregister()
             }
         } catch {
-            logger.error("Failed to \(isOn ? "enable" : "disable") launch at login: \(error.localizedDescription)")
+            logger.error(
+                "Failed to \(isOn ? "enable" : "disable") launch at login: \(error.localizedDescription)"
+            )
         }
+    }
+
+    @objc func exportData() {
+        let openPanel = NSOpenPanel()
+        openPanel.canChooseFiles = false
+        openPanel.canChooseDirectories = true
+        openPanel.allowsMultipleSelection = false
+        openPanel.canCreateDirectories = true
+        openPanel.title = "Choose a directory to export data"
+        openPanel.showsHiddenFiles = false
+        openPanel.prompt = "Export"
+
+        let fileName = "ProcessReporterData.plist"
+
+        let data = PreferencesDataModel.shared.exportToPlist()
+        guard let data = data else { return }
+
+        if openPanel.runModal() == .OK {
+            guard let selectedURL = openPanel.url else {
+                return
+            }
+
+            let fileManager = FileManager.default
+            let filePathURL = selectedURL.appendingPathComponent(fileName)
+            let filePath = filePathURL.path
+
+            do {
+                // 检查文件是否已存在
+                if fileManager.fileExists(atPath: filePath) {
+                    try fileManager.removeItem(atPath: filePath)
+                }
+
+                try data.write(to: filePathURL, options: [.atomic])
+
+                print("文件创建成功，路径: \(filePath)")
+
+            } catch {
+                print("创建文件失败: \(error.localizedDescription)")
+            }
+        } else {
+            print("用户取消了选择")
+        }
+    }
+
+    @objc func importData() {
     }
 }
