@@ -1,13 +1,12 @@
 //
-//  PreferencesDataModel.swift
+//  UserDefaultsRelay.swift
 //  ProcessReporter
 //
-//  Created by Innei on 2025/4/7.
+//  Created by Innei on 2025/4/8.
 //
-
-import Foundation
-import RxCocoa
 import RxSwift
+import RxCocoa
+import Foundation
 
 protocol UserDefaultsStorable {
     func toStorable() -> Any
@@ -67,57 +66,5 @@ struct UserDefaultsRelay<T> {
 
     var wrappedValue: BehaviorRelay<T> {
         return relay
-    }
-}
-
-class PreferencesDataModel {
-    public static let shared = PreferencesDataModel()
-
-    @UserDefaultsRelay("isEnabled", defaultValue: false)
-    var isEnabled: BehaviorRelay<Bool>
-
-    @UserDefaultsRelay("sendInterval", defaultValue: SendInterval.tenSeconds)
-    var sendInterval: BehaviorRelay<SendInterval>
-    
-    @UserDefaultsRelay("focusReport", defaultValue: true)
-    var focusReport: BehaviorRelay<Bool>
-        
-}
-
-extension SendInterval: UserDefaultsStorable {
-    func toStorable() -> Any {
-        return rawValue
-    }
-
-    static func fromStorable(_ value: Any) -> SendInterval? {
-        if let intValue = value as? Int {
-            return SendInterval(rawValue: intValue)
-        }
-        return nil
-    }
-}
-
-enum SendInterval: Int, CaseIterable {
-    case tenSeconds = 10
-    case thirtySeconds = 30
-    case oneMinute = 60
-
-    func toString() -> String {
-        switch self {
-        case .tenSeconds:
-            return "10s"
-        case .thirtySeconds:
-            return "30s"
-        case .oneMinute:
-            return "60s"
-        }
-    }
-
-    static func toLabels() -> [String] {
-        return SendInterval.allCases.map { $0.toString() }
-    }
-
-    static func labelToValue(_ label: String) -> SendInterval? {
-        return SendInterval.allCases.first { $0.toString() == label }
     }
 }
