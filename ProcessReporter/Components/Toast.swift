@@ -255,7 +255,6 @@ class ToastManager {
   }
 }
 
-// Helper methods
 extension ToastManager {
   func success(_ message: String, duration: TimeInterval = 3.0) {
     show(message, style: .success, duration: duration)

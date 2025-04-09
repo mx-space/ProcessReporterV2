@@ -6,9 +6,9 @@
 //
 
 import AppKit
-import os.log
 import ServiceManagement
 import SnapKit
+import os.log
 
 class PreferencesGeneralViewController: NSViewController, SettingWindowProtocol {
     private let logger = Logger()
@@ -76,9 +76,10 @@ class PreferencesGeneralViewController: NSViewController, SettingWindowProtocol 
         // Send Interval label and popup
 
         intervalPopup = NSPopUpButton()
+        intervalPopup.isEnabled = true
         intervalPopup.addItems(
             withTitles:
-            SendInterval.toLabels()
+                SendInterval.toLabels()
         )
         intervalPopup.action = #selector(switchInterval)
         createRow(
@@ -124,7 +125,7 @@ class PreferencesGeneralViewController: NSViewController, SettingWindowProtocol 
         let event = NSAppleEventManager.shared().currentAppleEvent
         return event?.eventID == kAEOpenApplication
             && event?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue
-            == keyAELaunchedAsLogInItem
+                == keyAELaunchedAsLogInItem
     }
 }
 
@@ -217,7 +218,34 @@ extension PreferencesGeneralViewController {
     }
 
     @objc func importData() {
-        
-        ToastManager.shared.success("Hello, World!")
+        let openPanel = NSOpenPanel()
+        openPanel.canChooseFiles = true
+        openPanel.canChooseDirectories = false
+        openPanel.allowsMultipleSelection = false
+        openPanel.canCreateDirectories = false
+        openPanel.title = "Choose a file to import data"
+        openPanel.showsHiddenFiles = true
+        openPanel.prompt = "Import"
+        openPanel.allowedContentTypes = [.propertyList]
+
+        if openPanel.runModal() != .OK {
+            return
+        }
+
+        guard let selectedURL = openPanel.url else {
+            return
+        }
+
+        do {
+            let data = try Data(contentsOf: selectedURL)
+            if PreferencesDataModel.importFromPlist(data: data) {
+                ToastManager.shared.success("Import successfully")
+                synchronizeUI()
+            } else {
+                ToastManager.shared.error("Import failed: Invalid data format")
+            }
+        } catch {
+            ToastManager.shared.error("Import failed: \(error.localizedDescription)")
+        }
     }
 }

@@ -31,20 +31,24 @@ extension PreferencesDataModel {
     static var slackIntegration: BehaviorRelay<SlackIntegration>
 }
 
-protocol DictionaryConvertible {
-    func toDictionary() -> [String: Any]
+extension MixSpaceIntegration {
+    static func fromDictionary(_ dict: [String: Any]) -> MixSpaceIntegration {
+        var integration = MixSpaceIntegration()
+        integration.isEnabled = dict["isEnabled"] as? Bool ?? false
+        integration.apiToken = dict["apiToken"] as? String ?? ""
+        integration.endpoint = dict["endpoint"] as? String ?? ""
+        integration.requestMethod = dict["requestMethod"] as? String ?? "POST"
+        return integration
+    }
 }
 
-extension DictionaryConvertible {
-    func toDictionary() -> [String: Any] {
-        let mirror = Mirror(reflecting: self)
-        var dict: [String: Any] = [:]
-
-        for child in mirror.children {
-            guard let propertyName = child.label else { continue }
-            dict[propertyName] = child.value
-        }
-
-        return dict
+extension SlackIntegration {
+    static func fromDictionary(_ dict: [String: Any]) -> SlackIntegration {
+        var integration = SlackIntegration()
+        integration.isEnabled = dict["isEnabled"] as? Bool ?? false
+        integration.apiToken = dict["apiToken"] as? String ?? ""
+        integration.customEmoji = dict["customEmoji"] as? String ?? ""
+        integration.customStatusText = dict["customStatusText"] as? String ?? ""
+        return integration
     }
 }
