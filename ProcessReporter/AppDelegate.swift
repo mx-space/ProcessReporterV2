@@ -18,14 +18,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         #endif
     }
 
-    @objc func showSettings() {
+    func showSettings() {
         let window = SettingWindow.shared
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-    }
-
-    @objc func quit() {
-        NSApp.terminate(nil)
     }
 
     func applicationWillTerminate(_ aNotification: Notification) {}

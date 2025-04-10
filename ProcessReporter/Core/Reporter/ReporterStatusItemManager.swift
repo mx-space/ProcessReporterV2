@@ -6,19 +6,38 @@
 //
 
 import Cocoa
+import RxCocoa
+import RxSwift
 
-class ReporterStatusItemManager: NSObject, NSMenuDelegate {
+class ReporterStatusItemManager: NSObject {
     private var statusItem: NSStatusItem!
 
     // MARK: - Items
 
     private var currentProcessItem: NSMenuItem!
+    private var enabledItem: NSMenuItem!
 
+    private var disposers = [Disposable]()
     override init() {
         super.init()
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
 
         setupStatusItem()
+        setupStatusSubscription()
+    }
+
+    private func setupStatusSubscription() {
+        let p = PreferencesDataModel.shared.isEnabled.subscribe { [weak self] enabled in
+            guard let self = self else { return }
+            self.enabledItem.state = enabled ? .on : .off
+        }
+        disposers.append(p)
+    }
+
+    deinit {
+        for d in disposers {
+            d.dispose()
+        }
     }
 
     @available(*, unavailable)
@@ -33,13 +52,17 @@ class ReporterStatusItemManager: NSObject, NSMenuDelegate {
 
         let menu = NSMenu()
         currentProcessItem = NSMenuItem(
-            title: "No Process", action: #selector(noop), keyEquivalent: "")
-        currentProcessItem.target = self
+            title: "No Process", action: #selector(noop), keyEquivalent: "", target: self)
         menu.addItem(currentProcessSectionHeader)
         menu.addItem(currentProcessItem)
         menu.addItem(NSMenuItem.separator())
+
+        enabledItem = NSMenuItem(
+            title: "Enabled", action: #selector(noop), keyEquivalent: "s", target: self)
+        menu.addItem(enabledItem)
         menu.addItem(
-            NSMenuItem(title: "Settings", action: #selector(showSettings), keyEquivalent: ","))
+            NSMenuItem(
+                title: "Settings", action: #selector(showSettings), keyEquivalent: ",", target: self))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(
             NSMenuItem(title: "Quit", action: #selector(NSApp.terminate), keyEquivalent: "q"))
@@ -50,9 +73,9 @@ class ReporterStatusItemManager: NSObject, NSMenuDelegate {
 
     @objc private func noop() {}
 
-    func menuWillOpen(_ menu: NSMenu) {
-        guard let info = ApplicationMonitor.shared.getFocusedWindowInfo() else { return }
-        updateCurrentProcessItem(info)
+    @objc private func toggleEnabled() {
+        let isEnabled = PreferencesDataModel.shared.isEnabled.value
+        PreferencesDataModel.shared.isEnabled.accept(!isEnabled)
     }
 
     @objc private func showSettings() {
@@ -89,5 +112,14 @@ class ReporterStatusItemManager: NSObject, NSMenuDelegate {
 
     func updateCurrentProcessItem(_ info: FocusedWindowInfo) {
         currentProcessItem.title = info.appName
+    }
+}
+
+extension ReporterStatusItemManager: NSMenuDelegate {
+    func menuWillOpen(_ menu: NSMenu) {
+        guard let info = ApplicationMonitor.shared.getFocusedWindowInfo() else { return }
+        updateCurrentProcessItem(info)
+
+        enabledItem.state = PreferencesDataModel.shared.isEnabled.value ? .on : .off
     }
 }
