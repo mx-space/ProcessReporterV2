@@ -304,6 +304,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = dev.innei.ProcessReporterV2;
 				PRODUCT_NAME = "$(TARGET_NAME)_DEV";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "ProcessReporter/ProcessReporter-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
@@ -335,6 +336,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = dev.innei.ProcessReporterV2;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "ProcessReporter/ProcessReporter-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;

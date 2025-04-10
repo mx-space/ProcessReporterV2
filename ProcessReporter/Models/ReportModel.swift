@@ -5,8 +5,8 @@
 //  Created by Innei on 2025/4/8.
 //
 import Foundation
-import SwiftData
 import Frostflake
+import SwiftData
 
 @Model
 class ReportModel {
@@ -17,12 +17,27 @@ class ReportModel {
     var timeStamp: Date
     var artist: String?
     var mediaName: String?
-    
-    init(processName: String, timeStamp: Date, artist: String?, mediaName: String?) {
-        self.id = Frostflake.generate().rawValue
+
+    // 持久化字段：存储 JSON 字符串
+    @Attribute
+    private var integrationsRaw: String
+
+    // 外部使用的 [String] 接口
+    var integrations: [String] {
+        get {
+            (try? JSONDecoder().decode([String].self, from: Data(integrationsRaw.utf8))) ?? []
+        }
+        set {
+            integrationsRaw = (try? JSONEncoder().encode(newValue)).flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
+        }
+    }
+
+    init(processName: String, artist: String?, mediaName: String?, integrations: [String]) {
+        id = Frostflake.generate().rawValue
         self.processName = processName
-        self.timeStamp = timeStamp
+        self.timeStamp = .now
         self.artist = artist
         self.mediaName = mediaName
+        self.integrationsRaw = (try? JSONEncoder().encode(integrations)).flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
     }
 }
