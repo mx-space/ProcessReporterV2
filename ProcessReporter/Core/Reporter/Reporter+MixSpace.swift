@@ -13,17 +13,25 @@ private struct MixSpaceDataPayload: Codable {
         let artist: String?
         let title: String?
     }
+    
+    struct Meta: Codable {
+        let iconBase64: String?
+        let iconUrl: String?
+        let description: String?
+    }
 
     let media: MediaInfo?
     let process: String
     let key: String
     let timestamp: UInt
+    let meta: Meta?
 
-    init(media: MediaInfo?, process: String, key: String) {
+    init(media: MediaInfo?, process: String, key: String, meta: Meta? = nil) {
         self.media = media
         self.process = process
         self.key = key
         timestamp = UInt(Int(Date().timeIntervalSince1970))
+        self.meta = meta
     }
 }
 
@@ -36,7 +44,8 @@ private func sendMixSpaceRequest(data: ReportModel) async -> Result<Void, Report
     let requestPayload = MixSpaceDataPayload(
         media: .init(
             artist: data.artist,
-            title: data.mediaName),
+            title: data.mediaName
+        ),
         process: data.processName,
         key: token
     )
@@ -65,7 +74,7 @@ private func sendMixSpaceRequest(data: ReportModel) async -> Result<Void, Report
     }
 }
 
-fileprivate let name = "MixSpace"
+private let name = "MixSpace"
 extension Reporter {
     func registerMixSpace() {
         register(
@@ -76,7 +85,8 @@ extension Reporter {
 
                     return await sendMixSpaceRequest(data: data)
                 }
-            ))
+            )
+        )
     }
 
     func unregisterMixSpace() {

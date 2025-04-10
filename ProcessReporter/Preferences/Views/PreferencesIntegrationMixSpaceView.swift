@@ -93,6 +93,7 @@ class PreferencesIntegrationMixSpaceView: IntegrationView {
         integration.requestMethod = methodSelect.selectedItem?.title ?? "POST"
         integration.apiToken = apiKeyInput.stringValue
         PreferencesDataModel.shared.mixSpaceIntegration.accept(integration)
+        ToastManager.shared.success("Saved!")
     }
 
     private func setupGridView() {

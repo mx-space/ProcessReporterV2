@@ -124,5 +124,6 @@ class PreferencesIntegrationSlackView: IntegrationView {
         integration.customEmoji = customEmojiInput.stringValue
         integration.customStatusText = customStatusTextInput.stringValue
         PreferencesDataModel.shared.slackIntegration.accept(integration)
+        ToastManager.shared.success("Saved!")
     }
 }

@@ -1,4 +1,25 @@
+import Cocoa
 import RxSwift
+import SystemConfiguration
+
+private func isNetworkAvailable() -> Bool {
+    var zeroAddress = sockaddr_in()
+    zeroAddress.sin_len = UInt8(MemoryLayout.size(ofValue: zeroAddress))
+    zeroAddress.sin_family = sa_family_t(AF_INET)
+
+    let defaultRouteReachability = withUnsafePointer(to: &zeroAddress) {
+        $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { zeroSockAddress in
+            SCNetworkReachabilityCreateWithAddress(nil, zeroSockAddress)
+        }
+    }
+
+    var flags = SCNetworkReachabilityFlags()
+    if !SCNetworkReachabilityGetFlags(defaultRouteReachability!, &flags) {
+        return false
+    }
+
+    return flags.contains(.reachable) && !flags.contains(.connectionRequired)
+}
 
 enum ReporterError: Error {
     case networkError(String)
@@ -11,6 +32,8 @@ struct ReporterOptions {
 }
 
 class Reporter {
+    private var statusItem: NSStatusItem!
+
     private var mapping = [String: ReporterOptions]()
 
     public func register(name: String, options: ReporterOptions) {
@@ -68,10 +91,17 @@ class Reporter {
             }
         }
 
-        //        ApplicationMonitor.shared.onMouseClicked = { }
+        toggleStatusItemIcon(.syncing)
     }
 
     private func prepareSend(appName: String) {
+        if !isNetworkAvailable() {
+            toggleStatusItemIcon(.offline)
+            return
+        } else {
+            toggleStatusItemIcon(.syncing)
+        }
+
         let (mediaName, artist) = getMediaInfo()
 
         let dataModel = ReportModel(
@@ -100,6 +130,8 @@ class Reporter {
     private func dispose() {
         ApplicationMonitor.shared.stopMouseMonitoring()
         ApplicationMonitor.shared.stopWindowFocusMonitoring()
+
+        toggleStatusItemIcon(.paused)
     }
 
     private var disposers: [Disposable] = []
@@ -121,6 +153,8 @@ class Reporter {
     }
 
     init() {
+        setupStatusItem()
+
         let preferences = PreferencesDataModel.shared
 
         let d1 = preferences.isEnabled.subscribe { [weak self] enabled in
@@ -181,5 +215,51 @@ extension Reporter {
         }
 
         return (mediaName, artist)
+    }
+}
+
+// MARK: - App Menu Item
+
+extension Reporter {
+    func setupStatusItem() {
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+
+        toggleStatusItemIcon(.ready)
+
+        let menu = NSMenu()
+
+        menu.addItem(
+            NSMenuItem(title: "Settings", action: #selector(showSettings), keyEquivalent: ","))
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApp.terminate), keyEquivalent: "q"))
+
+        statusItem.menu = menu
+    }
+
+    @objc func showSettings() {
+        let window = SettingWindow.shared
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    enum StatusItemIconStatus {
+        case ready
+        case syncing
+        case offline
+        case paused
+    }
+
+    func toggleStatusItemIcon(_ status: StatusItemIconStatus) {
+        guard let button = statusItem?.button else { return }
+        switch status {
+        case .ready:
+            button.image = NSImage(systemSymbolName: "icloud.fill", accessibilityDescription: "Ready")
+        case .offline:
+            button.image = NSImage(systemSymbolName: "icloud.slash.fill", accessibilityDescription: "Network Error")
+        case .paused:
+            button.image = NSImage(systemSymbolName: "icloud.slash.fill", accessibilityDescription: "Paused")
+        case .syncing:
+            button.image = NSImage(systemSymbolName: "arrow.trianglehead.2.clockwise.rotate.90.icloud.fill", accessibilityDescription: "Syncing")
+        }
     }
 }
