@@ -8,14 +8,14 @@
 import Cocoa
 
 class IntegrationView: NSView {
-    internal lazy var gridView: NSGridView = {
+    lazy var gridView: NSGridView = {
         let gridView = NSGridView()
         gridView.rowSpacing = 16
         gridView.columnSpacing = 12
         return gridView
     }()
 
-    internal func setupUI() {
+    func setupUI() {
         addSubview(gridView)
         gridView.snp.makeConstraints { make in
             make.centerX.equalToSuperview()
@@ -24,7 +24,7 @@ class IntegrationView: NSView {
         }
     }
 
-    internal func createRow(leftView: NSView, rightView: NSView) {
+    func createRow(leftView: NSView, rightView: NSView) {
         gridView.addRow(with: [leftView, rightView])
         gridView.cell(for: leftView)?.xPlacement = .trailing
 

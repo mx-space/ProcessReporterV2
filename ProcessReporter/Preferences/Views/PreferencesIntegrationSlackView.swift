@@ -22,6 +22,8 @@ class PreferencesIntegrationSlackView: IntegrationView {
         let textField = NSTextField()
         textField.placeholderString = "Custom Emoji"
         textField.isEditable = true
+        textField.isSelectable = true
+        textField.cell?.isScrollable = true
         return textField
     }()
 
@@ -29,6 +31,8 @@ class PreferencesIntegrationSlackView: IntegrationView {
         let textField = NSTextField()
         textField.placeholderString = "Custom Status Text"
         textField.isEditable = true
+        textField.isSelectable = true
+        textField.cell?.isScrollable = true
         return textField
     }()
 
@@ -36,6 +40,8 @@ class PreferencesIntegrationSlackView: IntegrationView {
         let textField = NSSecureTextField()
         textField.placeholderString = "API Key"
         textField.isEditable = true
+        textField.isSelectable = true
+        textField.cell?.isScrollable = true
         return textField
     }()
 

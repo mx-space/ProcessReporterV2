@@ -34,14 +34,30 @@ class PreferencesIntegrationMixSpaceView: IntegrationView {
 
         endpointInput = NSTextField(frame: .zero)
         endpointInput.placeholderString = "Enter endpoint URL"
+        endpointInput.isSelectable = true
+        endpointInput.isEditable = true
+        endpointInput.usesSingleLineMode = true
+        endpointInput.cell?.wraps = false
+        endpointInput.cell?.isScrollable = true
+
+        // Enable standard key bindings
+
+        endpointInput.cell?.sendsActionOnEndEditing = true
 
         methodSelect = NSPopUpButton(frame: .zero, pullsDown: false)
-        methodSelect.addItems(withTitles: ["GET", "POST", "PUT", "DELETE"])
+        methodSelect.addItems(withTitles: ["POST", "PUT", "DELETE", "PATCH"])
         methodSelect.controlSize = .regular
         methodSelect.font = .systemFont(ofSize: NSFont.systemFontSize)
 
         apiKeyInput = NSSecureTextField(frame: .zero)
         apiKeyInput.placeholderString = "Enter API Key"
+        apiKeyInput.isSelectable = true
+        apiKeyInput.isEditable = true
+        apiKeyInput.usesSingleLineMode = true
+        apiKeyInput.cell?.wraps = false
+        apiKeyInput.cell?.isScrollable = true
+
+        apiKeyInput.cell?.sendsActionOnEndEditing = true
 
         super.init(frame: .zero)
 
@@ -49,6 +65,7 @@ class PreferencesIntegrationMixSpaceView: IntegrationView {
         synchronizeUI()
     }
 
+    @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }

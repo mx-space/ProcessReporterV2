@@ -6,8 +6,8 @@
 //
 
 import Foundation
-import RxSwift
 import RxCocoa
+import RxSwift
 
 extension PreferencesDataModel {
     @UserDefaultsRelay("isEnabled", defaultValue: false)

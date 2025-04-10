@@ -62,47 +62,39 @@ class Reporter {
     private func monitor() {
         ApplicationMonitor.shared.startMouseMonitoring()
         ApplicationMonitor.shared.startWindowFocusMonitoring()
-        ApplicationMonitor.shared.onWindowFocusChanged = { info in
-            // Get media information using NowPlaying
-            let argv = ["nowplaying", "get", "title", "artist"]
-            let argc = Int32(argv.count)
-            let cStrings = argv.map { strdup($0) }
-            var cStringArray = cStrings.map { UnsafeMutablePointer<Int8>($0) }
-
-            let mediaInfo = NowPlaying.processCommand(withArgc: argc, argv: &cStringArray)
-
-            // Clean up allocated memory
-            cStrings.forEach { free($0) }
-            var mediaName: String?
-            var artist: String?
-            if let components = mediaInfo?.components(separatedBy: "\n") {
-                mediaName = components.count > 0 ? components[0] : nil
-                artist = components.count > 1 ? components[1] : nil
-            }
-
-            let dataModel = ReportModel(
-                processName: info.appName,
-                artist: artist,
-                mediaName: mediaName,
-                integrations: [])
-            Task {
-                let result = await self.send(data: dataModel)
-                switch result {
-                case let .success(successNames):
-                    dataModel.integrations = successNames
-                case let .failure(.unknown(_, successNames)):
-                    dataModel.integrations = successNames
-                default:
-                    break
-                }
-
-                if let context =  await Database.shared.ctx {
-                    context.insert(dataModel)
-                    try context.save()
-                }
+        ApplicationMonitor.shared.onWindowFocusChanged = { [unowned self] info in
+            if PreferencesDataModel.shared.focusReport.value {
+                self.prepareSend(appName: info.appName)
             }
         }
+
         //        ApplicationMonitor.shared.onMouseClicked = { }
+    }
+
+    private func prepareSend(appName: String) {
+        let (mediaName, artist) = getMediaInfo()
+
+        let dataModel = ReportModel(
+            processName: appName,
+            artist: artist,
+            mediaName: mediaName,
+            integrations: [])
+        Task {
+            let result = await self.send(data: dataModel)
+            switch result {
+            case let .success(successNames):
+                dataModel.integrations = successNames
+            case let .failure(.unknown(_, successNames)):
+                dataModel.integrations = successNames
+            default:
+                break
+            }
+
+            if let context = await Database.shared.ctx {
+                context.insert(dataModel)
+                try context.save()
+            }
+        }
     }
 
     private func dispose() {
@@ -111,15 +103,33 @@ class Reporter {
     }
 
     private var disposers: [Disposable] = []
+    private var timer: Timer?
+    private func setupTimer() {
+        disposeTimer()
+
+        let interval = PreferencesDataModel.shared.sendInterval.value
+        timer = Timer.scheduledTimer(withTimeInterval: TimeInterval(interval.rawValue), repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            if let info = ApplicationMonitor.shared.getFocusedWindowInfo() {
+                self.prepareSend(appName: info.appName)
+            }
+        }
+    }
+
+    private func disposeTimer() {
+        timer?.invalidate()
+    }
 
     init() {
         let preferences = PreferencesDataModel.shared
+
         let d1 = preferences.isEnabled.subscribe { [weak self] enabled in
             guard let self = self else { return }
             if enabled {
                 self.monitor()
             } else {
                 self.dispose()
+                self.disposeTimer()
             }
         }
 
@@ -132,12 +142,44 @@ class Reporter {
             }
         }
 
-        disposers.append(contentsOf: [d1, d2])
+        let d3 = preferences.sendInterval.subscribe { [weak self] _ in
+            guard let self = self else { return }
+            if preferences.isEnabled.value {
+                self.setupTimer()
+            } else {
+                self.disposeTimer()
+            }
+        }
+
+        disposers.append(contentsOf: [d1, d2, d3])
     }
 
     deinit {
         for disposer in disposers {
             disposer.dispose()
         }
+    }
+}
+
+extension Reporter {
+    private func getMediaInfo() -> (mediaName: String?, artist: String?) {
+        // Get media information using NowPlaying
+        let argv = ["nowplaying", "get", "title", "artist"]
+        let argc = Int32(argv.count)
+        let cStrings = argv.map { strdup($0) }
+        var cStringArray = cStrings.map { UnsafeMutablePointer<Int8>($0) }
+
+        let mediaInfo = NowPlaying.processCommand(withArgc: argc, argv: &cStringArray)
+
+        // Clean up allocated memory
+        cStrings.forEach { free($0) }
+        var mediaName: String?
+        var artist: String?
+        if let components = mediaInfo?.components(separatedBy: "\n") {
+            mediaName = components.count > 0 ? components[0] : nil
+            artist = components.count > 1 ? components[1] : nil
+        }
+
+        return (mediaName, artist)
     }
 }

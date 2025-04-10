@@ -177,22 +177,6 @@ class SettingWindow: NSWindow, NSWindowDelegate {
         case integration
     }
 
-    override func keyDown(with event: NSEvent) {
-        if !event.modifierFlags.contains(.command) {
-            return
-        }
-        switch event.charactersIgnoringModifiers {
-        case "w":
-            orderOut(nil)
-            break
-        case "q":
-            NSApp.terminate(nil)
-            break
-        default:
-            break
-        }
-    }
-
     @objc func closeWindow() {
         orderOut(nil)
     }
