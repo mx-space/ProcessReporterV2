@@ -77,6 +77,7 @@ class PreferencesGeneralViewController: NSViewController, SettingWindowProtocol 
 
         intervalPopup = NSPopUpButton()
         intervalPopup.isEnabled = true
+        intervalPopup.autoenablesItems = false
         intervalPopup.addItems(
             withTitles:
                 SendInterval.toLabels()

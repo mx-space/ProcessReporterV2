@@ -32,9 +32,8 @@ struct ReporterOptions {
 }
 
 class Reporter {
-    private var statusItem: NSStatusItem!
-
     private var mapping = [String: ReporterOptions]()
+    private var statusItemManager = ReporterStatusItemManager()
 
     public func register(name: String, options: ReporterOptions) {
         mapping[name] = options
@@ -91,15 +90,15 @@ class Reporter {
             }
         }
 
-        toggleStatusItemIcon(.syncing)
+        statusItemManager.toggleStatusItemIcon(.syncing)
     }
 
     private func prepareSend(appName: String) {
         if !isNetworkAvailable() {
-            toggleStatusItemIcon(.offline)
+            statusItemManager.toggleStatusItemIcon(.offline)
             return
         } else {
-            toggleStatusItemIcon(.syncing)
+            statusItemManager.toggleStatusItemIcon(.syncing)
         }
 
         let (mediaName, artist) = getMediaInfo()
@@ -131,7 +130,7 @@ class Reporter {
         ApplicationMonitor.shared.stopMouseMonitoring()
         ApplicationMonitor.shared.stopWindowFocusMonitoring()
 
-        toggleStatusItemIcon(.paused)
+        statusItemManager.toggleStatusItemIcon(.paused)
     }
 
     private var disposers: [Disposable] = []
@@ -153,8 +152,6 @@ class Reporter {
     }
 
     init() {
-        setupStatusItem()
-
         let preferences = PreferencesDataModel.shared
 
         let d1 = preferences.isEnabled.subscribe { [weak self] enabled in
@@ -215,51 +212,5 @@ extension Reporter {
         }
 
         return (mediaName, artist)
-    }
-}
-
-// MARK: - App Menu Item
-
-extension Reporter {
-    func setupStatusItem() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-
-        toggleStatusItemIcon(.ready)
-
-        let menu = NSMenu()
-
-        menu.addItem(
-            NSMenuItem(title: "Settings", action: #selector(showSettings), keyEquivalent: ","))
-        menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApp.terminate), keyEquivalent: "q"))
-
-        statusItem.menu = menu
-    }
-
-    @objc func showSettings() {
-        let window = SettingWindow.shared
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-    }
-
-    enum StatusItemIconStatus {
-        case ready
-        case syncing
-        case offline
-        case paused
-    }
-
-    func toggleStatusItemIcon(_ status: StatusItemIconStatus) {
-        guard let button = statusItem?.button else { return }
-        switch status {
-        case .ready:
-            button.image = NSImage(systemSymbolName: "icloud.fill", accessibilityDescription: "Ready")
-        case .offline:
-            button.image = NSImage(systemSymbolName: "icloud.slash.fill", accessibilityDescription: "Network Error")
-        case .paused:
-            button.image = NSImage(systemSymbolName: "icloud.slash.fill", accessibilityDescription: "Paused")
-        case .syncing:
-            button.image = NSImage(systemSymbolName: "arrow.trianglehead.2.clockwise.rotate.90.icloud.fill", accessibilityDescription: "Syncing")
-        }
     }
 }
