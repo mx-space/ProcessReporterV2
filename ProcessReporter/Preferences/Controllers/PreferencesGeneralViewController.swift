@@ -83,6 +83,7 @@ class PreferencesGeneralViewController: NSViewController, SettingWindowProtocol 
                 SendInterval.toLabels()
         )
         intervalPopup.action = #selector(switchInterval)
+        intervalPopup.target = self
         createRow(
             leftView: NSTextField(labelWithString: "Send Interval:"), rightView: intervalPopup)
 

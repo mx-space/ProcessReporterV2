@@ -108,6 +108,8 @@ class Reporter {
             artist: artist,
             mediaName: mediaName,
             integrations: [])
+        
+        statusItemManager.updateCurrentMediaItem(name: dataModel.mediaName, artist: dataModel.artist)
         Task {
             let result = await self.send(data: dataModel)
             switch result {
@@ -117,6 +119,12 @@ class Reporter {
                 dataModel.integrations = successNames
             default:
                 break
+            }
+
+            let partiallySuccess = dataModel.integrations.count > 0
+
+            if partiallySuccess {
+                statusItemManager.updateLastSendProcessNameItem(dataModel)
             }
 
             if let context = await Database.shared.ctx {
@@ -145,6 +153,7 @@ class Reporter {
                 self.prepareSend(appName: info.appName)
             }
         }
+        RunLoop.main.add(timer!, forMode: .common)
     }
 
     private func disposeTimer() {
@@ -189,28 +198,5 @@ class Reporter {
         for disposer in disposers {
             disposer.dispose()
         }
-    }
-}
-
-extension Reporter {
-    private func getMediaInfo() -> (mediaName: String?, artist: String?) {
-        // Get media information using NowPlaying
-        let argv = ["nowplaying", "get", "title", "artist"]
-        let argc = Int32(argv.count)
-        let cStrings = argv.map { strdup($0) }
-        var cStringArray = cStrings.map { UnsafeMutablePointer<Int8>($0) }
-
-        let mediaInfo = NowPlaying.processCommand(withArgc: argc, argv: &cStringArray)
-
-        // Clean up allocated memory
-        cStrings.forEach { free($0) }
-        var mediaName: String?
-        var artist: String?
-        if let components = mediaInfo?.components(separatedBy: "\n") {
-            mediaName = components.count > 0 ? components[0] : nil
-            artist = components.count > 1 ? components[1] : nil
-        }
-
-        return (mediaName, artist)
     }
 }

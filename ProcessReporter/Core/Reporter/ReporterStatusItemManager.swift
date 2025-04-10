@@ -14,10 +14,19 @@ class ReporterStatusItemManager: NSObject {
 
     // MARK: - Items
 
-    private var currentProcessItem: NSMenuItem!
     private var enabledItem: NSMenuItem!
 
+    private var currentProcessItem: NSMenuItem!
+    private var currentMediaNameItem: NSMenuItem!
+    private var currentMediaArtistItem: NSMenuItem!
+
+    private var lastSendProcessNameItem: NSMenuItem!
+    private var lastSendProcessTimeItem: NSMenuItem!
+
     private var disposers = [Disposable]()
+    private var lastReportTime: Date?
+    private var updateTimer: Timer?
+
     override init() {
         super.init()
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -38,6 +47,8 @@ class ReporterStatusItemManager: NSObject {
         for d in disposers {
             d.dispose()
         }
+        updateTimer?.invalidate()
+        updateTimer = nil
     }
 
     @available(*, unavailable)
@@ -46,15 +57,35 @@ class ReporterStatusItemManager: NSObject {
     }
 
     private func setupStatusItem() {
-        let currentProcessSectionHeader = NSMenuItem.sectionHeader(title: "Current Process")
-
         toggleStatusItemIcon(.ready)
 
         let menu = NSMenu()
         currentProcessItem = NSMenuItem(
             title: "No Process", action: #selector(noop), keyEquivalent: "", target: self)
-        menu.addItem(currentProcessSectionHeader)
+        menu.addItem(NSMenuItem.sectionHeader(title: "Current Process"))
         menu.addItem(currentProcessItem)
+
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(NSMenuItem.sectionHeader(title: "Current Media"))
+        currentMediaNameItem = NSMenuItem(
+            title: "No Media", action: #selector(noop), keyEquivalent: "", target: self)
+        menu.addItem(currentMediaNameItem)
+        currentMediaArtistItem = NSMenuItem(
+            title: "No Artist", action: #selector(noop), keyEquivalent: "", target: self)
+        menu.addItem(currentMediaArtistItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        menu.addItem(
+            NSMenuItem.sectionHeader(title: "Last Send Process"))
+
+        lastSendProcessNameItem = NSMenuItem(
+            title: "Last Process", action: #selector(noop), keyEquivalent: "", target: self)
+        menu.addItem(lastSendProcessNameItem)
+        lastSendProcessTimeItem = NSMenuItem(
+            title: "Last Time", action: #selector(noop), keyEquivalent: "", target: self)
+        menu.addItem(lastSendProcessTimeItem)
+
         menu.addItem(NSMenuItem.separator())
 
         enabledItem = NSMenuItem(
@@ -63,12 +94,28 @@ class ReporterStatusItemManager: NSObject {
         menu.addItem(
             NSMenuItem(
                 title: "Settings", action: #selector(showSettings), keyEquivalent: ",", target: self))
+
         menu.addItem(NSMenuItem.separator())
+
         menu.addItem(
             NSMenuItem(title: "Quit", action: #selector(NSApp.terminate), keyEquivalent: "q"))
 
         menu.delegate = self
         statusItem.menu = menu
+
+        setupUpdateTimer()
+    }
+
+    private func setupUpdateTimer() {
+        updateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            self?.updateLastSendTimeDisplay()
+        }
+        RunLoop.main.add(updateTimer!, forMode: .common)
+    }
+
+    private func updateLastSendTimeDisplay() {
+        guard let lastTime = lastReportTime else { return }
+        lastSendProcessTimeItem.title = "Updated at \(lastTime.relativeTimeDescription())"
     }
 
     @objc private func noop() {}
@@ -113,13 +160,52 @@ class ReporterStatusItemManager: NSObject {
     func updateCurrentProcessItem(_ info: FocusedWindowInfo) {
         currentProcessItem.title = info.appName
     }
+
+    func updateCurrentMediaItem(name: String?, artist: String?) {
+        currentMediaNameItem.title = name == nil ? "No Media" : name!
+        currentMediaArtistItem.title = artist == nil ? "No Artist" : artist!
+    }
+
+    func updateLastSendProcessNameItem(_ info: ReportModel) {
+        lastSendProcessNameItem.title = info.processName
+        lastReportTime = info.timeStamp
+        updateLastSendTimeDisplay()
+
+        currentMediaNameItem.title = info.mediaName == nil ? "No Media" : info.mediaName!
+        currentMediaArtistItem.title = info.artist == nil ? "No Artist" : info.artist!
+    }
 }
 
 extension ReporterStatusItemManager: NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) {
         guard let info = ApplicationMonitor.shared.getFocusedWindowInfo() else { return }
         updateCurrentProcessItem(info)
+        let (mediaName, artist) = getMediaInfo()
+        updateCurrentMediaItem(name: mediaName, artist: artist)
 
         enabledItem.state = PreferencesDataModel.shared.isEnabled.value ? .on : .off
+    }
+}
+
+extension Date {
+    func relativeTimeDescription() -> String {
+        let now = Date()
+        let interval = now.timeIntervalSince(self)
+
+        switch interval {
+        case ..<1:
+            return "just now"
+        case 1..<60:
+            return "\(Int(interval))s ago"
+        case 60..<3600:
+            return "\(Int(interval / 60))m ago"
+        case 3600..<86400:
+            return "\(Int(interval / 3600))h ago"
+        default:
+            let formatter = DateFormatter()
+            formatter.dateStyle = .short
+            formatter.timeStyle = .short
+            return formatter.string(from: self)
+        }
     }
 }
