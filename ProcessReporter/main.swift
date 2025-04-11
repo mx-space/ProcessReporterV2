@@ -9,11 +9,11 @@ func main() {
 
     Task { @MainActor in
         Database.shared.initialize()
+        _ = Reporter()
     }
 
     Frostflake.setup(sharedGenerator: .init(generatorIdentifier: 2025))
 
-    _ = Reporter()
     setupMenu()
     _ = NSApplicationMain(CommandLine.argc, CommandLine.unsafeArgv)
 }
@@ -42,6 +42,7 @@ private func setupMenu() {
     mainMenu.addItem(fileMenuItem)
 
     // MARK: - Edit menu
+
     let editMenu = NSMenu(title: "Edit")
     let editMenuItem = NSMenuItem(title: "Edit", action: nil, keyEquivalent: "")
     editMenuItem.submenu = editMenu

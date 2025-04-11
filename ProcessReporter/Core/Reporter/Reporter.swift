@@ -31,6 +31,7 @@ struct ReporterOptions {
     let onSend: (_ data: ReportModel) async -> Result<Void, ReporterError>
 }
 
+@MainActor
 class Reporter {
     private var mapping = [String: ReporterOptions]()
     private var statusItemManager = ReporterStatusItemManager()

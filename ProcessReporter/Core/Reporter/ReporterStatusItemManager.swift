@@ -9,6 +9,7 @@ import Cocoa
 import RxCocoa
 import RxSwift
 
+@MainActor
 class ReporterStatusItemManager: NSObject {
     private var statusItem: NSStatusItem!
 
