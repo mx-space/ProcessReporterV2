@@ -84,10 +84,10 @@ class ReporterStatusItemManager: NSObject {
         menu.addItem(lastSendMediaNameItem)
         lastSendMediaArtistItem = NSMenuItem(
             title: "..Last Artist", action: #selector(noop), keyEquivalent: "", target: self)
+        menu.addItem(lastSendMediaArtistItem)
         lastSendProcessTimeItem = NSMenuItem(
             title: "..Last Time", action: #selector(noop), keyEquivalent: "", target: self)
         menu.addItem(lastSendProcessTimeItem)
-        menu.addItem(lastSendMediaArtistItem)
 
         menu.addItem(NSMenuItem.separator())
 
