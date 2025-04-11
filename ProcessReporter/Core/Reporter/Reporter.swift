@@ -95,6 +95,11 @@ class Reporter {
     }
 
     private func prepareSend(appName: String) {
+        let enabledTypes = PreferencesDataModel.shared.enabledTypes.value.types
+        if enabledTypes.isEmpty {
+            statusItemManager.toggleStatusItemIcon(.paused)
+            return
+        }
         if !isNetworkAvailable() {
             statusItemManager.toggleStatusItemIcon(.offline)
             return
@@ -104,14 +109,22 @@ class Reporter {
 
         let (mediaName, artist) = getMediaInfo()
 
-        let dataModel = ReportModel(
-            processName: appName,
-            artist: artist,
-            mediaName: mediaName,
+        var dataModel = ReportModel(
+            processName: "",
+            artist: nil,
+            mediaName: nil,
             integrations: [])
-        
-        statusItemManager.updateCurrentMediaItem(name: dataModel.mediaName, artist: dataModel.artist)
-        Task {
+
+        if enabledTypes.contains(.media) {
+            dataModel.mediaName = mediaName
+            dataModel.artist = artist
+        }
+        if enabledTypes.contains(.process) {
+            dataModel.processName = appName
+        }
+
+        statusItemManager.updateCurrentMediaItem(name: mediaName, artist: artist)
+        Task { @MainActor in
             let result = await self.send(data: dataModel)
             switch result {
             case let .success(successNames):

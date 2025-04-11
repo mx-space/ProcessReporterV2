@@ -8,14 +8,14 @@
 import AppKit
 import SnapKit
 
-class SettingWindow: NSWindow, NSWindowDelegate {
+class SettingWindow: NSWindow {
     private let generalVC = PreferencesGeneralViewController()
     private let integrationVC = PreferencesIntegrationViewController()
 
     private let rootViewController = NSViewController()
     public static let shared = SettingWindow()
 
-    private let defaultFrameSize: NSSize = NSSize(width: 800, height: 0)
+    private let defaultFrameSize: NSSize = .init(width: 800, height: 0)
 
     // UserDefaults keys for window position and size
     private let windowFrameKey = "SettingWindowFrame"
@@ -32,9 +32,9 @@ class SettingWindow: NSWindow, NSWindowDelegate {
 
         // Try to restore saved position and size
         if let savedFrameData = UserDefaults.standard.data(forKey: windowFrameKey),
-            let nsValue = try? NSKeyedUnarchiver.unarchivedObject(
-                ofClass: NSValue.self, from: savedFrameData),
-            var savedFrame = nsValue.rectValue as NSRect?
+           let nsValue = try? NSKeyedUnarchiver.unarchivedObject(
+               ofClass: NSValue.self, from: savedFrameData),
+           let savedFrame = nsValue.rectValue as NSRect?
         {
             // Check if the saved frame is visible on any current screen
             var isOnScreen = false
@@ -85,23 +85,6 @@ class SettingWindow: NSWindow, NSWindowDelegate {
         self.toolbar = toolbar
     }
 
-    func windowShouldClose(_ sender: NSWindow) -> Bool {
-        sender.orderOut(nil)
-        return false
-    }
-
-    func windowDidBecomeKey(_ notification: Notification) {
-        NSApp.setActivationPolicy(.regular)
-        NSApplication.shared.activate()
-    }
-
-    func windowDidResignKey(_ notification: Notification) {
-        let sender = notification.object as! NSWindow
-        if !sender.isVisible {
-            NSApp.setActivationPolicy(.accessory)
-        }
-    }
-
     @objc private func switchToGeneral() {
         switchToTab(.general)
     }
@@ -109,6 +92,7 @@ class SettingWindow: NSWindow, NSWindowDelegate {
     @objc private func switchToIntegration() {
         switchToTab(.integration)
     }
+
     private func switchToTab(_ tab: TabIdentifier) {
         let vc: NSViewController
 
@@ -166,7 +150,7 @@ class SettingWindow: NSWindow, NSWindowDelegate {
 
             let targetSize =
                 ((vc as? SettingWindowProtocol) != nil)
-                ? (vc as! SettingWindowProtocol).frameSize : self.defaultFrameSize
+                    ? (vc as! SettingWindowProtocol).frameSize : self.defaultFrameSize
 
             self.adjustFrameForNewContentSize(targetSize)
         }
@@ -179,15 +163,6 @@ class SettingWindow: NSWindow, NSWindowDelegate {
 
     @objc func closeWindow() {
         orderOut(nil)
-    }
-
-    // Save window position and size when window is moved or resized
-    func windowDidResize(_ notification: Notification) {
-        saveWindowFrame()
-    }
-
-    func windowDidMove(_ notification: Notification) {
-        saveWindowFrame()
     }
 
     private func saveWindowFrame() {
@@ -224,7 +199,7 @@ class SettingWindow: NSWindow, NSWindowDelegate {
                     let screenBottom = screenFrame.origin.y
 
                     // 计算需要向上移动的距离
-                    let adjustmentNeeded = frame.origin.y - screenBottom  // 这是负值，表示超出的距离
+                    let adjustmentNeeded = frame.origin.y - screenBottom // 这是负值，表示超出的距离
 
                     // 设置新的 Y 坐标（窗口底部对齐屏幕可见区域底部，然后向上调整超出的距离）
                     frame.origin.y = self.frame.origin.y + adjustmentNeeded
@@ -275,10 +250,41 @@ extension SettingWindow: NSToolbarDelegate {
                 systemSymbolName: "puzzlepiece.extension", accessibilityDescription: "Integration")
             item.action = #selector(switchToIntegration)
             item.isEnabled = true
+
         default:
             return nil
         }
         item.target = self
         return item
+    }
+}
+
+// MARK: - Window Delegate
+
+extension SettingWindow: NSWindowDelegate {
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        sender.orderOut(nil)
+        return false
+    }
+
+    func windowDidBecomeKey(_ notification: Notification) {
+        NSApp.setActivationPolicy(.regular)
+        NSApplication.shared.activate()
+    }
+
+    func windowDidResignKey(_ notification: Notification) {
+        let sender = notification.object as! NSWindow
+        if !sender.isVisible {
+            NSApp.setActivationPolicy(.accessory)
+        }
+    }
+
+    // Save window position and size when window is moved or resized
+    func windowDidResize(_ notification: Notification) {
+        saveWindowFrame()
+    }
+
+    func windowDidMove(_ notification: Notification) {
+        saveWindowFrame()
     }
 }

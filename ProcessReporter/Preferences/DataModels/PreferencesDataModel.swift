@@ -17,6 +17,7 @@ class PreferencesDataModel {
             "isEnabled": PreferencesDataModel.isEnabled.value,
             "focusReport": PreferencesDataModel.focusReport.value,
             "sendInterval": PreferencesDataModel.sendInterval.value.rawValue,
+            "enabledTypes": PreferencesDataModel.enabledTypes.value.toStorable(),
             "mixSpaceIntegration": PreferencesDataModel.mixSpaceIntegration.value.toDictionary(),
             "slackIntegration": PreferencesDataModel.slackIntegration.value.toDictionary(),
         ]
@@ -28,8 +29,7 @@ class PreferencesDataModel {
         return try? PropertyListSerialization.data(
             fromPropertyList: dictionary,
             format: .xml,
-            options: 0
-        )
+            options: 0)
     }
 
     public static func importFromPlist(data: Data) -> Bool {
@@ -48,7 +48,7 @@ class PreferencesDataModel {
                 PreferencesDataModel.focusReport.accept(focusReport)
             }
             if let sendIntervalRaw = dictionary["sendInterval"] as? Int,
-                let sendInterval = SendInterval(rawValue: sendIntervalRaw)
+               let sendInterval = SendInterval(rawValue: sendIntervalRaw)
             {
                 PreferencesDataModel.sendInterval.accept(sendInterval)
             }
@@ -59,6 +59,12 @@ class PreferencesDataModel {
             if let slackDict = dictionary["slackIntegration"] as? [String: Any] {
                 PreferencesDataModel.slackIntegration.accept(
                     SlackIntegration.fromDictionary(slackDict))
+            }
+            if let enabledTypesArray = dictionary["enabledTypes"] as? [String] {
+                let enabledTypesSet = ReporterTypesSet(
+                    types: Set(enabledTypesArray.compactMap(Reporter.Types.fromStorable))
+                )
+                PreferencesDataModel.enabledTypes.accept(enabledTypesSet)
             }
 
             return true

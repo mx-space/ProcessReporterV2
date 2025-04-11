@@ -23,38 +23,34 @@ class ReporterStatusItemManager: NSObject {
 
     private var lastSendProcessNameItem: NSMenuItem!
     private var lastSendProcessTimeItem: NSMenuItem!
+    private var lastSendMediaNameItem: NSMenuItem!
+    private var lastSendMediaArtistItem: NSMenuItem!
 
-    private var disposers = [Disposable]()
     private var lastReportTime: Date?
     private var updateTimer: Timer?
+
+    // Action
+    private var enableMediaReportButton: NSMenuItem!
+    private var enableProcessReportButton: NSMenuItem!
 
     override init() {
         super.init()
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
 
         setupStatusItem()
-        setupStatusSubscription()
-    }
-
-    private func setupStatusSubscription() {
-        let p = PreferencesDataModel.shared.isEnabled.subscribe { [weak self] enabled in
-            guard let self = self else { return }
-            self.enabledItem.state = enabled ? .on : .off
-        }
-        disposers.append(p)
-    }
-
-    deinit {
-        for d in disposers {
-            d.dispose()
-        }
-        updateTimer?.invalidate()
-        updateTimer = nil
+        synchronizeUI()
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    private func synchronizeUI() {
+        let preferences = PreferencesDataModel.shared
+        enabledItem.state = preferences.isEnabled.value ? .on : .off
+        enableMediaReportButton.state = preferences.enabledTypes.value.types.contains(.media) ? .on : .off
+        enableProcessReportButton.state = preferences.enabledTypes.value.types.contains(.process) ? .on : .off
     }
 
     private func setupStatusItem() {
@@ -78,14 +74,20 @@ class ReporterStatusItemManager: NSObject {
         menu.addItem(NSMenuItem.separator())
 
         menu.addItem(
-            NSMenuItem.sectionHeader(title: "Last Send Process"))
+            NSMenuItem.sectionHeader(title: "Last Send"))
 
         lastSendProcessNameItem = NSMenuItem(
-            title: "Last Process", action: #selector(noop), keyEquivalent: "", target: self)
+            title: "..Last Process", action: #selector(noop), keyEquivalent: "", target: self)
         menu.addItem(lastSendProcessNameItem)
+        lastSendMediaNameItem = NSMenuItem(
+            title: "..Last Media", action: #selector(noop), keyEquivalent: "", target: self)
+        menu.addItem(lastSendMediaNameItem)
+        lastSendMediaArtistItem = NSMenuItem(
+            title: "..Last Artist", action: #selector(noop), keyEquivalent: "", target: self)
         lastSendProcessTimeItem = NSMenuItem(
-            title: "Last Time", action: #selector(noop), keyEquivalent: "", target: self)
+            title: "..Last Time", action: #selector(noop), keyEquivalent: "", target: self)
         menu.addItem(lastSendProcessTimeItem)
+        menu.addItem(lastSendMediaArtistItem)
 
         menu.addItem(NSMenuItem.separator())
 
@@ -95,6 +97,14 @@ class ReporterStatusItemManager: NSObject {
         menu.addItem(
             NSMenuItem(
                 title: "Settings", action: #selector(showSettings), keyEquivalent: ",", target: self))
+
+        menu.addItem(NSMenuItem.separator())
+
+        menu.addItem(NSMenuItem.sectionHeader(title: "Enabled Reporters"))
+        enableMediaReportButton = NSMenuItem(title: "Media", action: #selector(toggleEnableMedia), keyEquivalent: "", target: self)
+        enableProcessReportButton = NSMenuItem(title: "Process", action: #selector(toggleEnableProcess), keyEquivalent: "", target: self)
+        menu.addItem(enableMediaReportButton)
+        menu.addItem(enableProcessReportButton)
 
         menu.addItem(NSMenuItem.separator())
 
@@ -109,7 +119,9 @@ class ReporterStatusItemManager: NSObject {
 
     private func setupUpdateTimer() {
         updateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            self?.updateLastSendTimeDisplay()
+            Task { @MainActor in
+                self?.updateLastSendTimeDisplay()
+            }
         }
         RunLoop.main.add(updateTimer!, forMode: .common)
     }
@@ -117,19 +129,6 @@ class ReporterStatusItemManager: NSObject {
     private func updateLastSendTimeDisplay() {
         guard let lastTime = lastReportTime else { return }
         lastSendProcessTimeItem.title = "Updated at \(lastTime.relativeTimeDescription())"
-    }
-
-    @objc private func noop() {}
-
-    @objc private func toggleEnabled() {
-        let isEnabled = PreferencesDataModel.shared.isEnabled.value
-        PreferencesDataModel.shared.isEnabled.accept(!isEnabled)
-    }
-
-    @objc private func showSettings() {
-        let window = SettingWindow.shared
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
     }
 
     enum StatusItemIconStatus {
@@ -160,6 +159,11 @@ class ReporterStatusItemManager: NSObject {
 
     func updateCurrentProcessItem(_ info: FocusedWindowInfo) {
         currentProcessItem.title = info.appName
+        currentProcessItem.image = {
+            let icon = info.icon
+            icon?.size = NSSize(width: 16, height: 16)
+            return icon
+        }()
     }
 
     func updateCurrentMediaItem(name: String?, artist: String?) {
@@ -174,39 +178,60 @@ class ReporterStatusItemManager: NSObject {
 
         currentMediaNameItem.title = info.mediaName == nil ? "No Media" : info.mediaName!
         currentMediaArtistItem.title = info.artist == nil ? "No Artist" : info.artist!
+        lastSendMediaNameItem.title = info.mediaName == nil ? "No Media" : info.mediaName!
+        lastSendMediaArtistItem.title = info.artist == nil ? "No Artist" : info.artist!
     }
 }
 
+// MARK: - Menu Delegate
+
 extension ReporterStatusItemManager: NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) {
+        synchronizeUI()
         guard let info = ApplicationMonitor.shared.getFocusedWindowInfo() else { return }
         updateCurrentProcessItem(info)
         let (mediaName, artist) = getMediaInfo()
         updateCurrentMediaItem(name: mediaName, artist: artist)
-
-        enabledItem.state = PreferencesDataModel.shared.isEnabled.value ? .on : .off
     }
 }
 
-extension Date {
-    func relativeTimeDescription() -> String {
-        let now = Date()
-        let interval = now.timeIntervalSince(self)
+// MARK: - Menu Actions
 
-        switch interval {
-        case ..<1:
-            return "just now"
-        case 1..<60:
-            return "\(Int(interval))s ago"
-        case 60..<3600:
-            return "\(Int(interval / 60))m ago"
-        case 3600..<86400:
-            return "\(Int(interval / 3600))h ago"
-        default:
-            let formatter = DateFormatter()
-            formatter.dateStyle = .short
-            formatter.timeStyle = .short
-            return formatter.string(from: self)
+extension ReporterStatusItemManager {
+    @objc private func noop() {}
+
+    @objc private func toggleEnabled() {
+        let isEnabled = PreferencesDataModel.shared.isEnabled.value
+        PreferencesDataModel.shared.isEnabled.accept(!isEnabled)
+    }
+
+    @objc private func showSettings() {
+        let window = SettingWindow.shared
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc private func toggleEnableMedia(sender: NSMenuItem) {
+        let currentState = sender.state
+
+        var snapshot = PreferencesDataModel.shared.enabledTypes.value.types
+        if currentState == .on {
+            snapshot.remove(.media)
+        } else {
+            snapshot.insert(.media)
         }
+        PreferencesDataModel.shared.enabledTypes.accept(.init(types: snapshot))
+    }
+
+    @objc private func toggleEnableProcess(sender: NSMenuItem) {
+        let currentState = sender.state
+
+        var snapshot = PreferencesDataModel.shared.enabledTypes.value.types
+        if currentState == .on {
+            snapshot.remove(.process)
+        } else {
+            snapshot.insert(.process)
+        }
+        PreferencesDataModel.shared.enabledTypes.accept(.init(types: snapshot))
     }
 }

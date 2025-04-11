@@ -6,19 +6,22 @@
 //
 
 import AppKit
+import os.log
 import ServiceManagement
 import SnapKit
-import os.log
 
 class PreferencesGeneralViewController: NSViewController, SettingWindowProtocol {
     private let logger = Logger()
-    final let frameSize: NSSize = NSSize(width: 600, height: 250)
+    final let frameSize: NSSize = .init(width: 600, height: 280)
 
     private var gridView: NSGridView!
     private var enabledButton: NSButton!
     private var intervalPopup: NSPopUpButton!
     private var focusReportButton: NSButton!
     private var startupButton: NSButton!
+
+    private var enabledProcessButton: NSButton!
+    private var enabledMediaButton: NSButton!
 
     private var spacer: NSView {
         NSView()
@@ -41,6 +44,8 @@ class PreferencesGeneralViewController: NSViewController, SettingWindowProtocol 
             withTitle: PreferencesDataModel.shared.sendInterval.value.toString())
         focusReportButton.state = PreferencesDataModel.shared.focusReport.value ? .on : .off
         startupButton.state = checkWasLaunchedAtLogin() ? .on : .off
+        enabledProcessButton.state = PreferencesDataModel.shared.enabledTypes.value.types.contains(.process) ? .on : .off
+        enabledMediaButton.state = PreferencesDataModel.shared.enabledTypes.value.types.contains(.media) ? .on : .off
     }
 
     private func setupUI() {
@@ -63,8 +68,7 @@ class PreferencesGeneralViewController: NSViewController, SettingWindowProtocol 
         createRow(leftView: NSTextField(labelWithString: "App:"), rightView: enabledButton)
 
         startupButton = NSButton(
-            checkboxWithTitle: "Start at login", target: self, action: #selector(toggleStartAtLogin)
-        )
+            checkboxWithTitle: "Start at login", target: self, action: #selector(toggleStartAtLogin))
         createRow(leftView: spacer, rightView: startupButton)
 
         focusReportButton = NSButton(
@@ -74,18 +78,29 @@ class PreferencesGeneralViewController: NSViewController, SettingWindowProtocol 
             leftView: NSTextField(labelWithString: "Focus Report:"), rightView: focusReportButton)
 
         // Send Interval label and popup
-
         intervalPopup = NSPopUpButton()
         intervalPopup.isEnabled = true
         intervalPopup.autoenablesItems = false
         intervalPopup.addItems(
             withTitles:
-                SendInterval.toLabels()
+            SendInterval.toLabels()
         )
         intervalPopup.action = #selector(switchInterval)
         intervalPopup.target = self
         createRow(
             leftView: NSTextField(labelWithString: "Send Interval:"), rightView: intervalPopup)
+
+        // Enabled Process/Media checkboxes
+        enabledProcessButton = NSButton(
+            checkboxWithTitle: "Process", target: self, action: #selector(enabledProcessButtonClicked))
+        enabledMediaButton = NSButton(
+            checkboxWithTitle: "Media", target: self, action: #selector(enabledMediaButtonClicked))
+        let reportButtonGroup = NSStackView()
+        reportButtonGroup.orientation = .horizontal
+        reportButtonGroup.spacing = 8
+        reportButtonGroup.addArrangedSubview(enabledProcessButton)
+        reportButtonGroup.addArrangedSubview(enabledMediaButton)
+        createRow(leftView: NSTextField(labelWithString: "Report Types:"), rightView: reportButtonGroup)
 
         // Separator
         let separator = NSView()
@@ -127,7 +142,7 @@ class PreferencesGeneralViewController: NSViewController, SettingWindowProtocol 
         let event = NSAppleEventManager.shared().currentAppleEvent
         return event?.eventID == kAEOpenApplication
             && event?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue
-                == keyAELaunchedAsLogInItem
+            == keyAELaunchedAsLogInItem
     }
 }
 
@@ -175,6 +190,26 @@ extension PreferencesGeneralViewController {
                 "Failed to \(isOn ? "enable" : "disable") launch at login: \(error.localizedDescription)"
             )
         }
+    }
+
+    @objc private func enabledProcessButtonClicked(sender: NSButton) {
+        var types = PreferencesDataModel.shared.enabledTypes.value.types
+        if sender.state == .on {
+            types.insert(.process)
+        } else {
+            types.remove(.process)
+        }
+        PreferencesDataModel.shared.enabledTypes.accept(.init(types: types))
+    }
+
+    @objc private func enabledMediaButtonClicked(sender: NSButton) {
+        var types = PreferencesDataModel.shared.enabledTypes.value.types
+        if sender.state == .on {
+            types.insert(.media)
+        } else {
+            types.remove(.media)
+        }
+        PreferencesDataModel.shared.enabledTypes.accept(.init(types: types))
     }
 
     @objc func exportData() {

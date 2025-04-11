@@ -18,4 +18,49 @@ extension PreferencesDataModel {
 
     @UserDefaultsRelay("focusReport", defaultValue: true)
     static var focusReport: BehaviorRelay<Bool>
+
+    @UserDefaultsRelay(
+        "enabledTypes", defaultValue: ReporterTypesSet(types: [.media, .process]))
+    static var enabledTypes: BehaviorRelay<ReporterTypesSet>
+}
+
+extension Reporter.Types: UserDefaultsStorable {
+    func toStorable() -> Any? {
+        switch self {
+        case .media:
+            return "media"
+        case .process:
+            return "process"
+        }
+    }
+
+    static func fromStorable(_ value: Any?) -> Reporter.Types? {
+        guard let stringValue = value as? String else { return nil }
+        switch stringValue {
+        case "media":
+            return .media
+        case "process":
+            return .process
+        default:
+            return nil
+        }
+    }
+}
+
+// 创建一个包装类型
+struct ReporterTypesSet: UserDefaultsStorable {
+    let types: Set<Reporter.Types>
+
+    func toStorable() -> Any? {
+        // 将 Set 转换为数组，然后将每个元素转换为可存储的形式
+        return Array(types).compactMap { $0.toStorable() }
+    }
+
+    static func fromStorable(_ value: Any?) -> ReporterTypesSet? {
+        guard let array = value as? [String] else {
+            return nil
+        }
+        let types = array.compactMap(Reporter.Types.fromStorable)
+        return ReporterTypesSet(types: Set(types))
+    }
 }
