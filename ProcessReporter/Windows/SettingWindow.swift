@@ -11,6 +11,7 @@ import SnapKit
 class SettingWindow: NSWindow {
     private let generalVC = PreferencesGeneralViewController()
     private let integrationVC = PreferencesIntegrationViewController()
+    private lazy var historyVC = PreferencesHistoryViewController()
 
     private let rootViewController = NSViewController()
     public static let shared = SettingWindow()
@@ -93,12 +94,17 @@ class SettingWindow: NSWindow {
         switchToTab(.integration)
     }
 
+    @objc private func switchToHistory() {
+        switchToTab(.history)
+    }
+
     private func switchToTab(_ tab: TabIdentifier) {
         let vc: NSViewController
 
         switch tab {
         case .general: vc = generalVC
         case .integration: vc = integrationVC
+        case .history: vc = historyVC
         }
 
         // 为当前视图创建淡出动画
@@ -159,6 +165,7 @@ class SettingWindow: NSWindow {
     enum TabIdentifier: String {
         case general
         case integration
+        case history
     }
 
     @objc func closeWindow() {
@@ -215,13 +222,14 @@ class SettingWindow: NSWindow {
 extension NSToolbarItem.Identifier {
     static let general = NSToolbarItem.Identifier("general")
     static let integration = NSToolbarItem.Identifier("integration")
+    static let history = NSToolbarItem.Identifier("history")
 }
 
 // MARK: - Toolbar Delegate
 
 extension SettingWindow: NSToolbarDelegate {
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        return [.general, .integration]
+        return [.general, .integration, .history]
     }
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -249,6 +257,12 @@ extension SettingWindow: NSToolbarDelegate {
             item.image = NSImage(
                 systemSymbolName: "puzzlepiece.extension", accessibilityDescription: "Integration")
             item.action = #selector(switchToIntegration)
+            item.isEnabled = true
+
+        case .history:
+            item.label = "History"
+            item.image = NSImage(systemSymbolName: "clock.arrow.circlepath", accessibilityDescription: "History")
+            item.action = #selector(switchToHistory)
             item.isEnabled = true
 
         default:

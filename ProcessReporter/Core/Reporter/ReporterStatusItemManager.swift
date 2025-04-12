@@ -172,11 +172,11 @@ class ReporterStatusItemManager: NSObject {
         if let mediaInfo = mediaInfo, let name = mediaInfo.name {
             currentMediaNameItem.title = name
             currentMediaArtistItem.title = mediaInfo.artist ?? "No Artist"
-            if let image = mediaInfo.image, let base64 = mediaInfo.image, let data = Data(base64Encoded: base64) {
+            if let base64 = mediaInfo.image, let data = Data(base64Encoded: base64) {
                 currentMediaNameItem.image = {
                     let image = NSImage(data: data)
                     image?.size = NSSize(width: 36, height: 36)
-                     
+
                     return image?.withRoundedCorners(radius: 6)
                 }()
             }
@@ -211,7 +211,16 @@ extension ReporterStatusItemManager: NSMenuDelegate {
         if mediaInfo.playing {
             updateCurrentMediaItem(mediaInfo)
         }
+
+//        #if DEBUG
+//        let timer = Timer.init(timeInterval: 3, repeats: false) { _ in
+//            print("Debug: Menu opened")
+//            sleep(5)
+//        }
+//        RunLoop.main.add(timer, forMode: .common)
+//        #endif
     }
+    
 }
 
 // MARK: - Menu Actions

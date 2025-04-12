@@ -4,6 +4,7 @@
 //
 //  Created by Innei on 2025/4/8.
 //
+import Cocoa
 import Foundation
 import Frostflake
 import SwiftData
@@ -23,6 +24,11 @@ class ReportModel {
     var mediaProcessName: String?
     var mediaDuration: Double?
     var mediaElapsedTime: Double?
+
+    @Transient
+    var mediaImage: NSImage?
+    @Transient
+    var mediaInfoRaw: MediaInfo?
 
     // 持久化字段：存储 JSON 字符串
     @Attribute
@@ -55,7 +61,11 @@ class ReportModel {
             self.mediaProcessName = mediaInfo.processName
             self.mediaDuration = mediaInfo.duration
             self.mediaElapsedTime = mediaInfo.elapsedTime
+            if let base64 = mediaInfo.image, let data = Data(base64Encoded: base64) {
+                self.mediaImage = NSImage(data: data)
+            }
         }
+        self.mediaInfoRaw = mediaInfo
         self.integrationsRaw =
             (try? JSONEncoder().encode(integrations)).flatMap { String(data: $0, encoding: .utf8) }
                 ?? "[]"

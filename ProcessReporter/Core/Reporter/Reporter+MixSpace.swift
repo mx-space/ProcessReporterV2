@@ -17,24 +17,23 @@ private struct MixSpaceDataPayload: Codable {
         let processName: String?
     }
 
-    struct Meta: Codable {
+    struct ProcessInfo: Codable {
         let iconBase64: String?
         let iconUrl: String?
         let description: String?
+        let name: String?
     }
 
     let media: MediaInfo?
-    let process: String
     let key: String
     let timestamp: UInt
-    let meta: Meta?
+    let process: ProcessInfo
 
-    init(media: MediaInfo?, process: String, key: String, meta: Meta? = nil) {
+    init(process: ProcessInfo, media: MediaInfo?, key: String) {
         self.media = media
         self.process = process
         self.key = key
         timestamp = UInt(Int(Date().timeIntervalSince1970))
-        self.meta = meta
     }
 }
 
@@ -45,6 +44,7 @@ private func sendMixSpaceRequest(data: ReportModel) async -> Result<Void, Report
     let token = config.apiToken
 
     let requestPayload = MixSpaceDataPayload(
+        process: .init(iconBase64: nil, iconUrl: nil, description: nil, name: data.processName),
         media: .init(
             artist: data.artist,
             title: data.mediaName,
@@ -52,7 +52,6 @@ private func sendMixSpaceRequest(data: ReportModel) async -> Result<Void, Report
             elapsedTime: data.mediaElapsedTime,
             processName: data.mediaProcessName
         ),
-        process: data.processName,
         key: token
     )
 
@@ -74,7 +73,7 @@ private func sendMixSpaceRequest(data: ReportModel) async -> Result<Void, Report
 
         return .success(())
     } catch {
-        print("MixSpace request failed: \(error.localizedDescription)")
+        print("MixSpace request failed: \(error.asAFError?.localizedDescription ?? error.localizedDescription)")
         return .failure(.networkError(error.localizedDescription))
     }
 }
