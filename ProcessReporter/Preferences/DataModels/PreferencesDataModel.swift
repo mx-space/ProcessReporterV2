@@ -17,10 +17,14 @@ class PreferencesDataModel {
             "isEnabled": PreferencesDataModel.isEnabled.value,
             "focusReport": PreferencesDataModel.focusReport.value,
             "sendInterval": PreferencesDataModel.sendInterval.value.rawValue,
-            "enabledTypes": PreferencesDataModel.enabledTypes.value.toStorable() ?? [Reporter.Types.media.rawValue, Reporter.Types.process.rawValue],
+            "enabledTypes": PreferencesDataModel.enabledTypes.value.toStorable() ?? [
+                Reporter.Types.media.rawValue, Reporter.Types.process.rawValue,
+            ],
             "mixSpaceIntegration": PreferencesDataModel.mixSpaceIntegration.value.toDictionary(),
             "slackIntegration": PreferencesDataModel.slackIntegration.value.toDictionary(),
             "ignoreNullArtist": PreferencesDataModel.ignoreNullArtist.value,
+            "filteredProcesses": PreferencesDataModel.filteredProcesses.value,
+            "filteredMediaProcesses": PreferencesDataModel.filteredMediaProcesses.value,
         ]
     }
 
@@ -49,7 +53,7 @@ class PreferencesDataModel {
                 PreferencesDataModel.focusReport.accept(focusReport)
             }
             if let sendIntervalRaw = dictionary["sendInterval"] as? Int,
-               let sendInterval = SendInterval(rawValue: sendIntervalRaw)
+                let sendInterval = SendInterval(rawValue: sendIntervalRaw)
             {
                 PreferencesDataModel.sendInterval.accept(sendInterval)
             }
@@ -69,6 +73,12 @@ class PreferencesDataModel {
             }
             if let ignoreNullArtist = dictionary["ignoreNullArtist"] as? Bool {
                 PreferencesDataModel.ignoreNullArtist.accept(ignoreNullArtist)
+            }
+            if let filteredProcesses = dictionary["filteredProcesses"] as? [String] {
+                PreferencesDataModel.filteredProcesses.accept(filteredProcesses)
+            }
+            if let filteredMediaProcesses = dictionary["filteredMediaProcesses"] as? [String] {
+                PreferencesDataModel.filteredMediaProcesses.accept(filteredMediaProcesses)
             }
 
             return true

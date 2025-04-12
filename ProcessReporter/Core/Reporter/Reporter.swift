@@ -54,11 +54,12 @@ class Reporter {
             // 如果有失败的情况，将所有失败信息组合起来
             let errorMessage =
                 failures
-                    .map { "\($0.0): \($0.1)" }
-                    .joined(separator: ", ")
+                .map { "\($0.0): \($0.1)" }
+                .joined(separator: ", ")
             return .failure(
                 .unknown(
-                    message: "Some handlers failed: \(errorMessage)", successIntegrations: successNames))
+                    message: "Some handlers failed: \(errorMessage)",
+                    successIntegrations: successNames))
         }
     }
 
@@ -87,7 +88,13 @@ class Reporter {
             statusItemManager.toggleStatusItemIcon(.syncing)
         }
 
+        // TODO
+        // Check if the process is in the filtered list
+        let filteredProcesses = PreferencesDataModel.filteredProcesses.value
         let mediaInfo = getMediaInfo()
+
+        // Check if the media process is in the filtered list
+        let filteredMediaProcesses = PreferencesDataModel.filteredMediaProcesses.value
 
         let dataModel = ReportModel(
             processName: "",
@@ -156,7 +163,9 @@ class Reporter {
         disposeTimer()
 
         let interval = PreferencesDataModel.shared.sendInterval.value
-        timer = Timer.scheduledTimer(withTimeInterval: TimeInterval(interval.rawValue), repeats: true) { [weak self] _ in
+        timer = Timer.scheduledTimer(
+            withTimeInterval: TimeInterval(interval.rawValue), repeats: true
+        ) { [weak self] _ in
             Task { @MainActor in
                 guard let self = self else { return }
                 if let info = ApplicationMonitor.shared.getFocusedWindowInfo() {

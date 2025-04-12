@@ -9,9 +9,10 @@ import AppKit
 import SnapKit
 
 class SettingWindow: NSWindow {
-    private let generalVC = PreferencesGeneralViewController()
-    private let integrationVC = PreferencesIntegrationViewController()
+    private lazy var generalVC = PreferencesGeneralViewController()
+    private lazy var integrationVC = PreferencesIntegrationViewController()
     private lazy var historyVC = PreferencesHistoryViewController()
+    private lazy var filterVC = PreferencesFilterViewController()
 
     private let rootViewController = NSViewController()
     public static let shared = SettingWindow()
@@ -98,6 +99,10 @@ class SettingWindow: NSWindow {
         switchToTab(.history)
     }
 
+    @objc private func switchToFilter() {
+        switchToTab(.filter)
+    }
+
     private func switchToTab(_ tab: TabIdentifier) {
         let vc: NSViewController
 
@@ -105,6 +110,7 @@ class SettingWindow: NSWindow {
         case .general: vc = generalVC
         case .integration: vc = integrationVC
         case .history: vc = historyVC
+        case .filter: vc = filterVC
         }
 
         // 为当前视图创建淡出动画
@@ -166,6 +172,7 @@ class SettingWindow: NSWindow {
         case general
         case integration
         case history
+        case filter
     }
 
     @objc func closeWindow() {
@@ -223,13 +230,14 @@ extension NSToolbarItem.Identifier {
     static let general = NSToolbarItem.Identifier("general")
     static let integration = NSToolbarItem.Identifier("integration")
     static let history = NSToolbarItem.Identifier("history")
+    static let filter = NSToolbarItem.Identifier("filter")
 }
 
 // MARK: - Toolbar Delegate
 
 extension SettingWindow: NSToolbarDelegate {
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        return [.general, .integration, .history]
+        return [.general, .integration, .history, .filter]
     }
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -263,6 +271,12 @@ extension SettingWindow: NSToolbarDelegate {
             item.label = "History"
             item.image = NSImage(systemSymbolName: "clock.arrow.circlepath", accessibilityDescription: "History")
             item.action = #selector(switchToHistory)
+            item.isEnabled = true
+
+        case .filter:
+            item.label = "Filter"
+            item.image = NSImage(systemSymbolName: "line.horizontal.3.decrease.circle", accessibilityDescription: "Filter")
+            item.action = #selector(switchToFilter)
             item.isEnabled = true
 
         default:
