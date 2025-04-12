@@ -22,6 +22,9 @@ extension PreferencesDataModel {
     @UserDefaultsRelay(
         "enabledTypes", defaultValue: ReporterTypesSet(types: [.media, .process]))
     static var enabledTypes: BehaviorRelay<ReporterTypesSet>
+    
+    @UserDefaultsRelay("ignoreNullName", defaultValue: true)
+    static var ignoreNullArtist: BehaviorRelay<Bool>
 }
 
 extension Reporter.Types: UserDefaultsStorable {

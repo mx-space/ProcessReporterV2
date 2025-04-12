@@ -8,7 +8,7 @@
 import Foundation
 
 extension Reporter {
-    enum Types {
+    enum Types: String, CaseIterable {
         case process
         case media
     }

@@ -109,15 +109,18 @@ class Reporter {
 
         let (mediaName, artist) = getMediaInfo()
 
-        var dataModel = ReportModel(
+        let dataModel = ReportModel(
             processName: "",
             artist: nil,
             mediaName: nil,
             integrations: [])
 
+        let shouldIgnoreArtistNull = PreferencesDataModel.shared.ignoreNullArtist.value
         if enabledTypes.contains(.media) {
-            dataModel.mediaName = mediaName
-            dataModel.artist = artist
+            if !shouldIgnoreArtistNull || (artist != nil && !artist!.isEmpty) {
+                dataModel.mediaName = mediaName
+                dataModel.artist = artist
+            }
         }
         if enabledTypes.contains(.process) {
             dataModel.processName = appName

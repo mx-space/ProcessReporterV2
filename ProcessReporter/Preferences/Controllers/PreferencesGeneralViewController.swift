@@ -12,13 +12,22 @@ import SnapKit
 
 class PreferencesGeneralViewController: NSViewController, SettingWindowProtocol {
     private let logger = Logger()
-    final let frameSize: NSSize = .init(width: 600, height: 280)
+    final let frameSize: NSSize = .init(width: 600, height: 320)
 
     private var gridView: NSGridView!
+
+    // MARK: - App UI Elements
+
     private var enabledButton: NSButton!
+    private var startupButton: NSButton!
+
+    // MARK: - Reporter UI Elements
+
     private var intervalPopup: NSPopUpButton!
     private var focusReportButton: NSButton!
-    private var startupButton: NSButton!
+    private var ignoreArtistButton: NSButton!
+
+    // MARK: - Types UI Elements
 
     private var enabledProcessButton: NSButton!
     private var enabledMediaButton: NSButton!
@@ -46,6 +55,7 @@ class PreferencesGeneralViewController: NSViewController, SettingWindowProtocol 
         startupButton.state = checkWasLaunchedAtLogin() ? .on : .off
         enabledProcessButton.state = PreferencesDataModel.shared.enabledTypes.value.types.contains(.process) ? .on : .off
         enabledMediaButton.state = PreferencesDataModel.shared.enabledTypes.value.types.contains(.media) ? .on : .off
+        ignoreArtistButton.state = PreferencesDataModel.shared.ignoreNullArtist.value ? .on : .off
     }
 
     private func setupUI() {
@@ -75,7 +85,11 @@ class PreferencesGeneralViewController: NSViewController, SettingWindowProtocol 
             checkboxWithTitle: "Report when application focused", target: self,
             action: #selector(focusReportButtonClicked))
         createRow(
-            leftView: NSTextField(labelWithString: "Focus Report:"), rightView: focusReportButton)
+            leftView: NSTextField(labelWithString: "Report:"), rightView: focusReportButton)
+
+        ignoreArtistButton = NSButton(
+            checkboxWithTitle: "When the artist is a null value then ignore report", target: self, action: #selector(ignoreArtistButtonClicked))
+        createRow(leftView: spacer, rightView: ignoreArtistButton)
 
         // Send Interval label and popup
         intervalPopup = NSPopUpButton()
@@ -109,9 +123,9 @@ class PreferencesGeneralViewController: NSViewController, SettingWindowProtocol 
         separator.snp.makeConstraints { make in
             make.height.equalTo(1)
         }
-        // 添加分隔符行并设置为跨列
-        gridView.addRow(with: [separator])
-        gridView.row(at: gridView.numberOfRows - 1).mergeCells(in: NSRange(location: 0, length: 2))
+
+        gridView.addRow(with: [spacer, separator])
+//        gridView.row(at: gridView.numberOfRows - 1).mergeCells(in: NSRange(location: 0, length: 2))
 
         // Data Control Stack
         let dataControlStackView = NSStackView()
@@ -150,8 +164,9 @@ class PreferencesGeneralViewController: NSViewController, SettingWindowProtocol 
 
 extension PreferencesGeneralViewController {
     private func createRow(leftView: NSView, rightView: NSView) {
-        gridView.addRow(with: [leftView, rightView])
+        let row = gridView.addRow(with: [leftView, rightView])
         gridView.cell(for: leftView)?.xPlacement = .trailing
+        row.height = 18
     }
 }
 
@@ -210,6 +225,10 @@ extension PreferencesGeneralViewController {
             types.remove(.media)
         }
         PreferencesDataModel.shared.enabledTypes.accept(.init(types: types))
+    }
+
+    @objc func ignoreArtistButtonClicked(sender: NSButton) {
+        PreferencesDataModel.shared.ignoreNullArtist.accept(sender.state == .on)
     }
 
     @objc func exportData() {

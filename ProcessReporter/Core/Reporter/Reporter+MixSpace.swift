@@ -43,7 +43,7 @@ private func sendMixSpaceRequest(data: ReportModel) async -> Result<Void, Report
 
     let requestPayload = MixSpaceDataPayload(
         media: .init(
-            artist: data.artist,
+            artist: data.artist ?? "",
             title: data.mediaName
         ),
         process: data.processName,
@@ -66,7 +66,6 @@ private func sendMixSpaceRequest(data: ReportModel) async -> Result<Void, Report
         .serializingData()
         .value
 
-        print("MixSpace request sent successfully")
         return .success(())
     } catch {
         print("MixSpace request failed: \(error.localizedDescription)")

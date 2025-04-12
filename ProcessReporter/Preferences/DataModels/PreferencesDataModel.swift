@@ -17,9 +17,10 @@ class PreferencesDataModel {
             "isEnabled": PreferencesDataModel.isEnabled.value,
             "focusReport": PreferencesDataModel.focusReport.value,
             "sendInterval": PreferencesDataModel.sendInterval.value.rawValue,
-            "enabledTypes": PreferencesDataModel.enabledTypes.value.toStorable(),
+            "enabledTypes": PreferencesDataModel.enabledTypes.value.toStorable() ?? [Reporter.Types.media.rawValue, Reporter.Types.process.rawValue],
             "mixSpaceIntegration": PreferencesDataModel.mixSpaceIntegration.value.toDictionary(),
             "slackIntegration": PreferencesDataModel.slackIntegration.value.toDictionary(),
+            "ignoreNullArtist": PreferencesDataModel.ignoreNullArtist.value,
         ]
     }
 
@@ -65,6 +66,9 @@ class PreferencesDataModel {
                     types: Set(enabledTypesArray.compactMap(Reporter.Types.fromStorable))
                 )
                 PreferencesDataModel.enabledTypes.accept(enabledTypesSet)
+            }
+            if let ignoreNullArtist = dictionary["ignoreNullArtist"] as? Bool {
+                PreferencesDataModel.ignoreNullArtist.accept(ignoreNullArtist)
             }
 
             return true
