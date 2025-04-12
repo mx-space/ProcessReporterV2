@@ -12,8 +12,11 @@ private struct MixSpaceDataPayload: Codable {
     struct MediaInfo: Codable {
         let artist: String?
         let title: String?
+        let duration: Double?
+        let elapsedTime: Double?
+        let processName: String?
     }
-    
+
     struct Meta: Codable {
         let iconBase64: String?
         let iconUrl: String?
@@ -43,8 +46,11 @@ private func sendMixSpaceRequest(data: ReportModel) async -> Result<Void, Report
 
     let requestPayload = MixSpaceDataPayload(
         media: .init(
-            artist: data.artist ?? "",
-            title: data.mediaName
+            artist: data.artist,
+            title: data.mediaName,
+            duration: data.mediaDuration,
+            elapsedTime: data.mediaElapsedTime,
+            processName: data.mediaProcessName
         ),
         process: data.processName,
         key: token

@@ -166,9 +166,25 @@ class ReporterStatusItemManager: NSObject {
         }()
     }
 
-    func updateCurrentMediaItem(name: String?, artist: String?) {
-        currentMediaNameItem.title = name == nil ? "No Media" : name!
-        currentMediaArtistItem.title = artist == nil ? "No Artist" : artist!
+    func updateCurrentMediaItem(
+        _ mediaInfo: MediaInfo? = nil
+    ) {
+        if let mediaInfo = mediaInfo, let name = mediaInfo.name {
+            currentMediaNameItem.title = name
+            currentMediaArtistItem.title = mediaInfo.artist ?? "No Artist"
+            if let image = mediaInfo.image, let base64 = mediaInfo.image, let data = Data(base64Encoded: base64) {
+                currentMediaNameItem.image = {
+                    let image = NSImage(data: data)
+                    image?.size = NSSize(width: 36, height: 36)
+                     
+                    return image?.withRoundedCorners(radius: 6)
+                }()
+            }
+
+        } else {
+            currentMediaNameItem.title = "No Media"
+            currentMediaArtistItem.title = "No Artist"
+        }
     }
 
     func updateLastSendProcessNameItem(_ info: ReportModel) {
@@ -193,9 +209,7 @@ extension ReporterStatusItemManager: NSMenuDelegate {
 
         guard let mediaInfo = getMediaInfo() else { return }
         if mediaInfo.playing {
-            let mediaName = mediaInfo.name
-            let artist = mediaInfo.artist
-            updateCurrentMediaItem(name: mediaName, artist: artist)
+            updateCurrentMediaItem(mediaInfo)
         }
     }
 }

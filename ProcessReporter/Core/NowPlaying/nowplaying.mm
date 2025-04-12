@@ -1,11 +1,12 @@
 // nowplaying.m
 // ProcessReporter
+// https://github.com/davidmurray/ios-reversed-headers/blob/master/MediaRemote/MediaRemote.h
 // Created by Innei on 2023/7/2.
 #import "nowplaying.h"
+#import "MRContent.h"
 #import <AppKit/AppKit.h>
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
-#import "MRContent.h"
 
 typedef void (*MRMediaRemoteGetNowPlayingInfoFunction)(
     dispatch_queue_t queue, void (^handler)(NSDictionary *information));
@@ -193,6 +194,23 @@ typedef enum { GET, GET_RAW, MEDIA_COMMAND, SEEK } Command;
             NSString *artworkMIMEType = [information
                 objectForKey:@"kMRMediaRemoteNowPlayingInfoArtworkMIMEType"];
 
+            // 处理专辑封面数据
+            NSString *artworkBase64 = @"";
+            if (artworkData) {
+              // 如果是 PNG 或 JPEG 数据，直接转换为 base64
+              if ([artworkMIMEType isEqualToString:@"image/png"] ||
+                  [artworkMIMEType isEqualToString:@"image/jpeg"]) {
+                artworkBase64 = [artworkData base64EncodedStringWithOptions:0];
+              } else {
+                // 如果不是标准图片格式，尝试转换为 PNG
+                NSImage *image = [[NSImage alloc] initWithData:artworkData];
+                if (image) {
+                  NSData *pngData = [image TIFFRepresentation];
+                  artworkBase64 = [pngData base64EncodedStringWithOptions:0];
+                }
+              }
+            }
+
             // 获取进程信息
             NSRunningApplication *app = [NSRunningApplication
                 runningApplicationWithProcessIdentifier:pid];
@@ -256,9 +274,7 @@ typedef enum { GET, GET_RAW, MEDIA_COMMAND, SEEK } Command;
               @"supportsIsLiked" : supportsIsLiked ?: @NO,
 
               // 专辑封面
-              @"artworkData" : artworkData
-                  ? [artworkData base64EncodedStringWithOptions:0]
-                  : @"",
+              @"artworkData" : artworkBase64,
               @"artworkMIMEType" : artworkMIMEType ?: @"",
 
               // 播放状态

@@ -15,8 +15,14 @@ class ReportModel {
 
     var processName: String
     var timeStamp: Date
+
+    // MARK: - Media Info
+
     var artist: String?
     var mediaName: String?
+    var mediaProcessName: String?
+    var mediaDuration: Double?
+    var mediaElapsedTime: Double?
 
     // 持久化字段：存储 JSON 字符串
     @Attribute
@@ -28,16 +34,30 @@ class ReportModel {
             (try? JSONDecoder().decode([String].self, from: Data(integrationsRaw.utf8))) ?? []
         }
         set {
-            integrationsRaw = (try? JSONEncoder().encode(newValue)).flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
+            integrationsRaw =
+                (try? JSONEncoder().encode(newValue)).flatMap { String(data: $0, encoding: .utf8) }
+                    ?? "[]"
         }
     }
 
-    init(processName: String, artist: String?, mediaName: String?, integrations: [String]) {
-        id = Frostflake.generate().rawValue
+    init(
+        processName: String,
+        integrations: [String],
+        mediaInfo: MediaInfo?
+    ) {
+        self.id = Frostflake.generate().rawValue
         self.processName = processName
         self.timeStamp = .now
-        self.artist = artist
-        self.mediaName = mediaName
-        self.integrationsRaw = (try? JSONEncoder().encode(integrations)).flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
+
+        if let mediaInfo = mediaInfo {
+            self.artist = mediaInfo.artist
+            self.mediaName = mediaInfo.name
+            self.mediaProcessName = mediaInfo.processName
+            self.mediaDuration = mediaInfo.duration
+            self.mediaElapsedTime = mediaInfo.elapsedTime
+        }
+        self.integrationsRaw =
+            (try? JSONEncoder().encode(integrations)).flatMap { String(data: $0, encoding: .utf8) }
+                ?? "[]"
     }
 }

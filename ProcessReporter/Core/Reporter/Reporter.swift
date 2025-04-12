@@ -91,9 +91,8 @@ class Reporter {
 
         let dataModel = ReportModel(
             processName: "",
-            artist: nil,
-            mediaName: nil,
-            integrations: [])
+            integrations: [],
+            mediaInfo: mediaInfo)
 
         let shouldIgnoreArtistNull = PreferencesDataModel.shared.ignoreNullArtist.value
         if enabledTypes.contains(.media), let mediaInfo = mediaInfo, mediaInfo.playing {
@@ -106,7 +105,7 @@ class Reporter {
             dataModel.processName = appName
         }
         if let mediaInfo = mediaInfo, mediaInfo.playing {
-            statusItemManager.updateCurrentMediaItem(name: mediaInfo.name, artist: mediaInfo.artist)
+            statusItemManager.updateCurrentMediaItem(mediaInfo)
         }
 
         Task { @MainActor in
