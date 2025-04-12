@@ -241,9 +241,7 @@ extension ReporterStatusItemManager {
     }
 
     @objc private func showSettings() {
-        let window = SettingWindow.shared
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        SettingWindowManager.shared.showWindow()
     }
 
     @objc private func toggleEnableMedia(sender: NSMenuItem) {
