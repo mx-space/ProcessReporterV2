@@ -136,6 +136,8 @@ class ReporterStatusItemManager: NSObject {
         case syncing
         case offline
         case paused
+        case partialError
+        case error
     }
 
     func toggleStatusItemIcon(_ status: StatusItemIconStatus) {
@@ -154,6 +156,12 @@ class ReporterStatusItemManager: NSObject {
             button.image = NSImage(
                 systemSymbolName: "arrow.trianglehead.2.clockwise.rotate.90.icloud.fill",
                 accessibilityDescription: "Syncing")
+        case .partialError:
+            button.image = NSImage(
+                systemSymbolName: "exclamationmark.icloud", accessibilityDescription: "Partial Error")
+        case .error:
+            button.image = NSImage(
+                systemSymbolName: "exclamationmark.icloud.fill", accessibilityDescription: "Error")
         }
     }
 
@@ -215,12 +223,11 @@ extension ReporterStatusItemManager: NSMenuDelegate {
 //        #if DEBUG
 //        let timer = Timer.init(timeInterval: 3, repeats: false) { _ in
 //            print("Debug: Menu opened")
-//            sleep(5)
+//            sleep(50)
 //        }
 //        RunLoop.main.add(timer, forMode: .common)
 //        #endif
     }
-    
 }
 
 // MARK: - Menu Actions

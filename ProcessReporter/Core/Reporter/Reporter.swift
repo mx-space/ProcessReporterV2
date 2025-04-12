@@ -110,11 +110,15 @@ class Reporter {
 
         Task { @MainActor in
             let result = await self.send(data: dataModel)
+            var isAllSuccess = false
+            var isAllFailed = false
             switch result {
             case let .success(successNames):
                 dataModel.integrations = successNames
+                isAllSuccess = true
             case let .failure(.unknown(_, successNames)):
                 dataModel.integrations = successNames
+                isAllFailed = dataModel.integrations.isEmpty
             default:
                 break
             }
@@ -123,6 +127,13 @@ class Reporter {
 
             if partiallySuccess {
                 statusItemManager.updateLastSendProcessNameItem(dataModel)
+            }
+            if isAllFailed {
+                statusItemManager.toggleStatusItemIcon(.error)
+            }
+
+            if !isAllFailed && !isAllSuccess {
+                statusItemManager.toggleStatusItemIcon(.partialError)
             }
 
             if let context = Database.shared.ctx {
@@ -146,9 +157,11 @@ class Reporter {
 
         let interval = PreferencesDataModel.shared.sendInterval.value
         timer = Timer.scheduledTimer(withTimeInterval: TimeInterval(interval.rawValue), repeats: true) { [weak self] _ in
-            guard let self = self else { return }
-            if let info = ApplicationMonitor.shared.getFocusedWindowInfo() {
-                self.prepareSend(appName: info.appName)
+            Task { @MainActor in
+                guard let self = self else { return }
+                if let info = ApplicationMonitor.shared.getFocusedWindowInfo() {
+                    self.prepareSend(appName: info.appName)
+                }
             }
         }
         RunLoop.main.add(timer!, forMode: .common)
