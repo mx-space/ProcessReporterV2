@@ -15,7 +15,6 @@ class SettingWindow: NSWindow {
     private lazy var filterVC = PreferencesFilterViewController()
 
     private let rootViewController = NSViewController()
-    public static let shared = SettingWindow()
 
     private let defaultFrameSize: NSSize = .init(width: 800, height: 0)
 
@@ -269,7 +268,8 @@ extension SettingWindow: NSToolbarDelegate {
 
         case .history:
             item.label = "History"
-            item.image = NSImage(systemSymbolName: "clock.arrow.circlepath", accessibilityDescription: "History")
+            item.image = NSImage(
+                systemSymbolName: "clock.arrow.circlepath", accessibilityDescription: "History")
             item.action = #selector(switchToHistory)
             item.isEnabled = true
 
@@ -291,8 +291,12 @@ extension SettingWindow: NSToolbarDelegate {
 
 extension SettingWindow: NSWindowDelegate {
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        sender.orderOut(nil)
+        SettingWindowManager.shared.closeWindow()
         return false
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        NSApp.setActivationPolicy(.accessory)
     }
 
     func windowDidBecomeKey(_ notification: Notification) {
