@@ -9,24 +9,10 @@ import Foundation
 
 extension Date {
     func relativeTimeDescription() -> String {
-        let now = Date()
-        let interval = now.timeIntervalSince(self)
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
 
-        switch interval {
-        case ..<1:
-            return "just now"
-        case 1..<60:
-            return "\(Int(interval))s ago"
-        case 60..<3600:
-            return "\(Int(interval / 60))m ago"
-        case 3600..<86400:
-            return "\(Int(interval / 3600))h ago"
-        default:
-            let formatter = DateFormatter()
-            formatter.dateStyle = .short
-            formatter.timeStyle = .short
-            return formatter.string(from: self)
-        }
+        let relativeDate = formatter.localizedString(for: self, relativeTo: Date.now)
+        return relativeDate
     }
 }
-

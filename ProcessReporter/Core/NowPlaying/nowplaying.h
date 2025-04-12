@@ -9,6 +9,6 @@
 
 @interface NowPlaying : NSObject
 
-+ (NSString *)processCommandWithArgc:(int)argc argv:(char **)argv;
++ (NSDictionary *)getNowPlayingInfo;
 
 @end

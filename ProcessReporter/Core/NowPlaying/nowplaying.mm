@@ -2,57 +2,27 @@
 // ProcessReporter
 // Created by Innei on 2023/7/2.
 #import "nowplaying.h"
-#import "Enums.h"
-#import "MRContent.h"
 #import <AppKit/AppKit.h>
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
+#import "MRContent.h"
 
 typedef void (*MRMediaRemoteGetNowPlayingInfoFunction)(
     dispatch_queue_t queue, void (^handler)(NSDictionary *information));
-typedef Boolean (*MRMediaRemoteSendCommandFunction)(MRMediaRemoteCommand cmd,
-                                                    NSDictionary *userInfo);
 typedef void (*MRMediaRemoteSetElapsedTimeFunction)(double time);
+typedef void (*MRMediaRemoteGetNowPlayingApplicationIsPlayingFunction)(
+    dispatch_queue_t queue, void (^handler)(Boolean isPlaying));
+typedef void (*MRMediaRemoteGetNowPlayingApplicationPIDFunction)(
+    dispatch_queue_t queue, void (^handler)(int PID));
 
 typedef enum { GET, GET_RAW, MEDIA_COMMAND, SEEK } Command;
 
 @implementation NowPlaying
 
-+ (NSString *)processCommandWithArgc:(int)argc argv:(char **)argv {
-  static NSDictionary<NSString *, NSNumber *> *cmdTranslate = @{
-    @"play" : @(MRMediaRemoteCommandPlay),
-    @"pause" : @(MRMediaRemoteCommandPause),
-    @"togglePlayPause" : @(MRMediaRemoteCommandTogglePlayPause),
-    @"next" : @(MRMediaRemoteCommandNextTrack),
-    @"previous" : @(MRMediaRemoteCommandPreviousTrack),
-  };
-
-  Command command = GET;
-  NSString *cmdStr = [NSString stringWithUTF8String:argv[1]];
-  double seekTime = 0;
-
-  int numKeys = argc - 2;
-  NSMutableArray<NSString *> *keys = [NSMutableArray array];
-  if (strcmp(argv[1], "get") == 0) {
-    for (int i = 2; i < argc; i++) {
-      NSString *key = [NSString stringWithUTF8String:argv[i]];
-      [keys addObject:key];
-    }
-    command = GET;
-  } else if (strcmp(argv[1], "get-raw") == 0) {
-    command = GET_RAW;
-  } else if (strcmp(argv[1], "seek") == 0 && argc == 3) {
-    command = SEEK;
-    char *end;
-    seekTime = strtod(argv[2], &end);
-    if (*end != '\0') {
-      return @"Invalid seek time. Usage: nowplaying-cli seek <secs>\n";
-    }
-  } else if (cmdTranslate[cmdStr] != nil) {
-    command = MEDIA_COMMAND;
-  }
-
-  __block NSString *result = @"";
++ (NSDictionary *)getNowPlayingInfo {
+  __block NSDictionary *result = nil;
+  dispatch_group_t group = dispatch_group_create();
+  dispatch_group_enter(group);
 
   @autoreleasepool {
     CFURLRef ref = (__bridge CFURLRef)
@@ -60,80 +30,251 @@ typedef enum { GET, GET_RAW, MEDIA_COMMAND, SEEK } Command;
                    @"/System/Library/PrivateFrameworks/MediaRemote.framework"];
     CFBundleRef bundle = CFBundleCreate(kCFAllocatorDefault, ref);
 
-    MRMediaRemoteSendCommandFunction MRMediaRemoteSendCommand =
-        (MRMediaRemoteSendCommandFunction)CFBundleGetFunctionPointerForName(
-            bundle, CFSTR("MRMediaRemoteSendCommand"));
-    if (command == MEDIA_COMMAND) {
-      MRMediaRemoteSendCommand(
-          (MRMediaRemoteCommand)[cmdTranslate[cmdStr] intValue], nil);
-    }
-
-    MRMediaRemoteSetElapsedTimeFunction MRMediaRemoteSetElapsedTime =
-        (MRMediaRemoteSetElapsedTimeFunction)CFBundleGetFunctionPointerForName(
-            bundle, CFSTR("MRMediaRemoteSetElapsedTime"));
-    if (command == SEEK) {
-      MRMediaRemoteSetElapsedTime(seekTime);
-    }
-
-    dispatch_group_t group = dispatch_group_create();
-    dispatch_group_enter(group);
-
     MRMediaRemoteGetNowPlayingInfoFunction MRMediaRemoteGetNowPlayingInfo =
         (MRMediaRemoteGetNowPlayingInfoFunction)
             CFBundleGetFunctionPointerForName(
                 bundle, CFSTR("MRMediaRemoteGetNowPlayingInfo"));
-    MRMediaRemoteGetNowPlayingInfo(
+
+    MRMediaRemoteGetNowPlayingApplicationIsPlayingFunction
+        MRMediaRemoteGetNowPlayingApplicationIsPlaying =
+            (MRMediaRemoteGetNowPlayingApplicationIsPlayingFunction)
+                CFBundleGetFunctionPointerForName(
+                    bundle,
+                    CFSTR("MRMediaRemoteGetNowPlayingApplicationIsPlaying"));
+
+    MRMediaRemoteGetNowPlayingApplicationPIDFunction
+        MRMediaRemoteGetNowPlayingApplicationPID =
+            (MRMediaRemoteGetNowPlayingApplicationPIDFunction)
+                CFBundleGetFunctionPointerForName(
+                    bundle, CFSTR("MRMediaRemoteGetNowPlayingApplicationPID"));
+
+    __block BOOL isPlaying = NO;
+    dispatch_group_enter(group);
+    MRMediaRemoteGetNowPlayingApplicationIsPlaying(
         dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
-        ^(NSDictionary *information) {
-          if (command == MEDIA_COMMAND || command == SEEK) {
-            dispatch_group_leave(group);
-            return;
-          }
-
-          NSString *data = [information description];
-          if (command == GET_RAW) {
-            result = [result stringByAppendingFormat:@"%@\n", data];
-            dispatch_group_leave(group);
-            return;
-          }
-
-          for (int i = 0; i < numKeys; i++) {
-            NSString *propKey = [keys[i]
-                stringByReplacingCharactersInRange:NSMakeRange(0, 1)
-                                        withString:[[keys[i] substringToIndex:1]
-                                                       capitalizedString]];
-            NSString *key = [NSString
-                stringWithFormat:@"kMRMediaRemoteNowPlayingInfo%@", propKey];
-            NSObject *rawValue = [information objectForKey:key];
-            if (rawValue == nil) {
-              result = [result stringByAppendingString:@"null\n"];
-            } else if ([key isEqualToString:
-                                @"kMRMediaRemoteNowPlayingInfoArtworkData"] ||
-                       [key isEqualToString:@"kMRMediaRemoteNowPlayingInfoClien"
-                                            @"tPropertiesData"]) {
-              NSData *data = (NSData *)rawValue;
-              NSString *base64 = [data base64EncodedStringWithOptions:0];
-              result = [result stringByAppendingFormat:@"%@\n", base64];
-            } else if ([key isEqualToString:
-                                @"kMRMediaRemoteNowPlayingInfoElapsedTime"]) {
-              MRContentItem *item = [[objc_getClass("MRContentItem") alloc]
-                  initWithNowPlayingInfo:information];
-              NSString *value = [NSString
-                  stringWithFormat:@"%f",
-                                   item.metadata.calculatedPlaybackPosition];
-              result = [result stringByAppendingFormat:@"%@\n", value];
-            } else {
-              NSString *value = [NSString stringWithFormat:@"%@", rawValue];
-              result = [result stringByAppendingFormat:@"%@\n", value];
-            }
-          }
-
+        ^(Boolean playing) {
+          isPlaying = playing;
           dispatch_group_leave(group);
         });
 
-    dispatch_group_wait(group, DISPATCH_TIME_FOREVER);
+    __block int pid = 0;
+    dispatch_group_enter(group);
+    MRMediaRemoteGetNowPlayingApplicationPID(
+        dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
+        ^(int applicationPID) {
+          pid = applicationPID;
+          dispatch_group_leave(group);
+        });
+
+    MRMediaRemoteGetNowPlayingInfo(
+        dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
+        ^(NSDictionary *information) {
+          if (information) {
+            MRContentItem *item = [[objc_getClass("MRContentItem") alloc]
+                initWithNowPlayingInfo:information];
+
+            // 基本信息
+            NSString *name =
+                [information objectForKey:@"kMRMediaRemoteNowPlayingInfoTitle"];
+            NSString *artist = [information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoArtist"];
+            NSString *album =
+                [information objectForKey:@"kMRMediaRemoteNowPlayingInfoAlbum"];
+            NSString *genre =
+                [information objectForKey:@"kMRMediaRemoteNowPlayingInfoGenre"];
+            NSString *composer = [information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoComposer"];
+
+            // 播放信息
+            double elapsedTime = [[information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoElapsedTime"]
+                doubleValue];
+            double duration = [[information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoDuration"]
+                doubleValue];
+            double playbackRate = [[information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoPlaybackRate"]
+                doubleValue];
+            double startTime = [[information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoStartTime"]
+                doubleValue];
+
+            // 曲目信息
+            NSNumber *trackNumber = [information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoTrackNumber"];
+            NSNumber *totalTrackCount = [information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoTotalTrackCount"];
+            NSNumber *discNumber = [information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoDiscNumber"];
+            NSNumber *totalDiscCount = [information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoTotalDiscCount"];
+            NSNumber *chapterNumber = [information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoChapterNumber"];
+            NSNumber *totalChapterCount = [information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoTotalChapterCount"];
+
+            // 队列信息
+            NSNumber *queueIndex = [information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoQueueIndex"];
+            NSNumber *totalQueueCount = [information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoTotalQueueCount"];
+
+            // 播放模式
+            NSNumber *shuffleMode = [information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoShuffleMode"];
+            NSNumber *repeatMode = [information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoRepeatMode"];
+
+            // 其他信息
+            NSString *mediaType = [information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoMediaType"];
+            NSNumber *isMusicApp = [information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoIsMusicApp"];
+            NSString *uniqueIdentifier = [information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoUniqueIdentifier"];
+            NSDate *timestamp = [information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoTimestamp"];
+
+            // 交互状态
+            NSNumber *isAdvertisement = [information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoIsAdvertisement"];
+            NSNumber *isBanned = [information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoIsBanned"];
+            NSNumber *isInWishList = [information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoIsInWishList"];
+            NSNumber *isLiked = [information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoIsLiked"];
+            NSNumber *prohibitsSkip = [information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoProhibitsSkip"];
+
+            // 电台信息
+            NSString *radioStationIdentifier = [information
+                objectForKey:
+                    @"kMRMediaRemoteNowPlayingInfoRadioStationIdentifier"];
+            NSString *radioStationHash = [information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoRadioStationHash"];
+
+            // 功能支持
+            NSNumber *supportsFastForward15Seconds =
+                [information objectForKey:@"kMRMediaRemoteNowPlayingInfoSupport"
+                                          @"sFastForward15Seconds"];
+            NSNumber *supportsRewind15Seconds = [information
+                objectForKey:
+                    @"kMRMediaRemoteNowPlayingInfoSupportsRewind15Seconds"];
+            NSNumber *supportsIsBanned = [information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoSupportsIsBanned"];
+            NSNumber *supportsIsLiked = [information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoSupportsIsLiked"];
+
+            // 获取播放状态
+            NSString *playbackState = nil;
+            if ([item respondsToSelector:@selector(metadata)]) {
+              id metadata = [item valueForKey:@"metadata"];
+              if ([metadata respondsToSelector:@selector(playbackState)]) {
+                playbackState = [NSString
+                    stringWithFormat:@"%ld", (long)[[metadata
+                                                 valueForKey:@"playbackState"]
+                                                 integerValue]];
+              }
+            }
+
+            // 获取 bundle identifier
+            NSString *bundleIdentifier = nil;
+            if ([item respondsToSelector:@selector(metadata)]) {
+              id metadata = [item valueForKey:@"metadata"];
+              if ([metadata respondsToSelector:@selector(bundleIdentifier)]) {
+                bundleIdentifier = [metadata valueForKey:@"bundleIdentifier"];
+              }
+            }
+
+            // 获取专辑封面
+            NSData *artworkData = [information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoArtworkData"];
+            NSString *artworkMIMEType = [information
+                objectForKey:@"kMRMediaRemoteNowPlayingInfoArtworkMIMEType"];
+
+            // 获取进程信息
+            NSRunningApplication *app = [NSRunningApplication
+                runningApplicationWithProcessIdentifier:pid];
+            NSString *processName = app.localizedName ?: @"";
+            NSString *executablePath = app.executableURL.path ?: @"";
+
+            result = @{
+              // 基本信息
+              @"name" : name ?: @"",
+              @"artist" : artist ?: @"",
+              @"album" : album ?: @"",
+              @"genre" : genre ?: @"",
+              @"composer" : composer ?: @"",
+
+              // 播放信息
+              @"elapsedTime" : @(elapsedTime),
+              @"duration" : @(duration),
+              @"playbackRate" : @(playbackRate),
+              @"startTime" : @(startTime),
+              @"playbackState" : playbackState ?: @"",
+
+              // 曲目信息
+              @"trackNumber" : trackNumber ?: @0,
+              @"totalTrackCount" : totalTrackCount ?: @0,
+              @"discNumber" : discNumber ?: @0,
+              @"totalDiscCount" : totalDiscCount ?: @0,
+              @"chapterNumber" : chapterNumber ?: @0,
+              @"totalChapterCount" : totalChapterCount ?: @0,
+
+              // 队列信息
+              @"queueIndex" : queueIndex ?: @0,
+              @"totalQueueCount" : totalQueueCount ?: @0,
+
+              // 播放模式
+              @"shuffleMode" : shuffleMode ?: @0,
+              @"repeatMode" : repeatMode ?: @0,
+
+              // 其他信息
+              @"mediaType" : mediaType ?: @"",
+              @"isMusicApp" : isMusicApp ?: @NO,
+              @"uniqueIdentifier" : uniqueIdentifier ?: @"",
+              @"timestamp" : timestamp ?: [NSDate date],
+              @"bundleIdentifier" : bundleIdentifier ?: @"",
+
+              // 交互状态
+              @"isAdvertisement" : isAdvertisement ?: @NO,
+              @"isBanned" : isBanned ?: @NO,
+              @"isInWishList" : isInWishList ?: @NO,
+              @"isLiked" : isLiked ?: @NO,
+              @"prohibitsSkip" : prohibitsSkip ?: @NO,
+
+              // 电台信息
+              @"radioStationIdentifier" : radioStationIdentifier ?: @"",
+              @"radioStationHash" : radioStationHash ?: @"",
+
+              // 功能支持
+              @"supportsFastForward15Seconds" : supportsFastForward15Seconds
+                  ?: @NO,
+              @"supportsRewind15Seconds" : supportsRewind15Seconds ?: @NO,
+              @"supportsIsBanned" : supportsIsBanned ?: @NO,
+              @"supportsIsLiked" : supportsIsLiked ?: @NO,
+
+              // 专辑封面
+              @"artworkData" : artworkData
+                  ? [artworkData base64EncodedStringWithOptions:0]
+                  : @"",
+              @"artworkMIMEType" : artworkMIMEType ?: @"",
+
+              // 播放状态
+              @"isPlaying" : @(isPlaying),
+
+              // 进程信息
+              @"processID" : @(pid),
+              @"processName" : processName,
+              @"executablePath" : executablePath,
+            };
+          }
+          dispatch_group_leave(group);
+        });
   }
 
+  dispatch_group_wait(group, DISPATCH_TIME_FOREVER);
   return result;
 }
 

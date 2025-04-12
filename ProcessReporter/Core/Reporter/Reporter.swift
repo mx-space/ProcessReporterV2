@@ -1,25 +1,5 @@
 import Cocoa
 import RxSwift
-import SystemConfiguration
-
-private func isNetworkAvailable() -> Bool {
-    var zeroAddress = sockaddr_in()
-    zeroAddress.sin_len = UInt8(MemoryLayout.size(ofValue: zeroAddress))
-    zeroAddress.sin_family = sa_family_t(AF_INET)
-
-    let defaultRouteReachability = withUnsafePointer(to: &zeroAddress) {
-        $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { zeroSockAddress in
-            SCNetworkReachabilityCreateWithAddress(nil, zeroSockAddress)
-        }
-    }
-
-    var flags = SCNetworkReachabilityFlags()
-    if !SCNetworkReachabilityGetFlags(defaultRouteReachability!, &flags) {
-        return false
-    }
-
-    return flags.contains(.reachable) && !flags.contains(.connectionRequired)
-}
 
 enum ReporterError: Error {
     case networkError(String)
@@ -107,7 +87,7 @@ class Reporter {
             statusItemManager.toggleStatusItemIcon(.syncing)
         }
 
-        let (mediaName, artist) = getMediaInfo()
+        let mediaInfo = getMediaInfo()
 
         let dataModel = ReportModel(
             processName: "",
@@ -116,17 +96,19 @@ class Reporter {
             integrations: [])
 
         let shouldIgnoreArtistNull = PreferencesDataModel.shared.ignoreNullArtist.value
-        if enabledTypes.contains(.media) {
-            if !shouldIgnoreArtistNull || (artist != nil && !artist!.isEmpty) {
-                dataModel.mediaName = mediaName
-                dataModel.artist = artist
+        if enabledTypes.contains(.media), let mediaInfo = mediaInfo, mediaInfo.playing {
+            if !shouldIgnoreArtistNull || (mediaInfo.artist != nil && !mediaInfo.artist!.isEmpty) {
+                dataModel.mediaName = mediaInfo.name
+                dataModel.artist = mediaInfo.artist
             }
         }
         if enabledTypes.contains(.process) {
             dataModel.processName = appName
         }
+        if let mediaInfo = mediaInfo, mediaInfo.playing {
+            statusItemManager.updateCurrentMediaItem(name: mediaInfo.name, artist: mediaInfo.artist)
+        }
 
-        statusItemManager.updateCurrentMediaItem(name: mediaName, artist: artist)
         Task { @MainActor in
             let result = await self.send(data: dataModel)
             switch result {
@@ -144,7 +126,7 @@ class Reporter {
                 statusItemManager.updateLastSendProcessNameItem(dataModel)
             }
 
-            if let context = await Database.shared.ctx {
+            if let context = Database.shared.ctx {
                 context.insert(dataModel)
                 try context.save()
             }
@@ -187,6 +169,12 @@ class Reporter {
             } else {
                 self.dispose()
                 self.disposeTimer()
+            }
+        }
+
+        if preferences.isEnabled.value {
+            if let appName = ApplicationMonitor.shared.getFocusedWindowInfo()?.appName {
+                prepareSend(appName: appName)
             }
         }
 

@@ -128,7 +128,7 @@ class ReporterStatusItemManager: NSObject {
 
     private func updateLastSendTimeDisplay() {
         guard let lastTime = lastReportTime else { return }
-        lastSendProcessTimeItem.title = "Updated at \(lastTime.relativeTimeDescription())"
+        lastSendProcessTimeItem.title = lastTime.relativeTimeDescription()
     }
 
     enum StatusItemIconStatus {
@@ -190,8 +190,13 @@ extension ReporterStatusItemManager: NSMenuDelegate {
         synchronizeUI()
         guard let info = ApplicationMonitor.shared.getFocusedWindowInfo() else { return }
         updateCurrentProcessItem(info)
-        let (mediaName, artist) = getMediaInfo()
-        updateCurrentMediaItem(name: mediaName, artist: artist)
+
+        guard let mediaInfo = getMediaInfo() else { return }
+        if mediaInfo.playing {
+            let mediaName = mediaInfo.name
+            let artist = mediaInfo.artist
+            updateCurrentMediaItem(name: mediaName, artist: artist)
+        }
     }
 }
 
