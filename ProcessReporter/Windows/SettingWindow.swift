@@ -28,7 +28,7 @@ class SettingWindow: NSWindow {
         contentViewController = rootViewController
 
         rootViewController.view.frame.size = defaultFrameSize
-
+        self.isReleasedWhenClosed = false
         title = "Settings"
 
         // Try to restore saved position and size

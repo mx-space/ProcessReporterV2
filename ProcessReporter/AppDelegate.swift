@@ -12,7 +12,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         // 初始设置为 accessory 模式（不显示 Dock 图标）
         NSApp.setActivationPolicy(.accessory)
-        NSWindow().makeKeyAndOrderFront(nil)
+
         #if DEBUG
         showSettings()
         #endif

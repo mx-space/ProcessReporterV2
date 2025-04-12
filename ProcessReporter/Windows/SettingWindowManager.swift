@@ -11,7 +11,7 @@ import Cocoa
 @MainActor
 class SettingWindowManager: NSObject {
     static let shared = SettingWindowManager()
-    var settingWindow: TestWindow?
+    var settingWindow: SettingWindow?
 
     func showWindow() {
         // Check if we have a reference AND the window it points to hasn't been closed by the user
@@ -20,13 +20,10 @@ class SettingWindowManager: NSObject {
             window.makeKeyAndOrderFront(nil)
         } else {
             // Either no window exists, or the one we had was closed. Create a new one.
-            print("Creating new TestWindow instance.") // Debugging log
-            let window = TestWindow()
+
+            let window = SettingWindow()
 
             self.settingWindow = window // Store the strong reference to the NEW window
-
-            // Center the window (optional, but good practice)
-            window.center()
 
             window.makeKeyAndOrderFront(nil)
         }
@@ -37,11 +34,8 @@ class SettingWindowManager: NSObject {
     // Optional: Add a method to explicitly close/release the window if needed
     func closeWindow() {
         self.settingWindow?.close()
-//        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-//            self?.settingWindow = SettingWindow()
-//        }
-        // If you want to release the window instance when closed:
-//        settingWindow = nil
+
+        self.settingWindow = nil
     }
 }
 

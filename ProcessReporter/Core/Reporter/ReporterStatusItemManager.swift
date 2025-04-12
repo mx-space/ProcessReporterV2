@@ -92,7 +92,7 @@ class ReporterStatusItemManager: NSObject {
         menu.addItem(NSMenuItem.separator())
 
         enabledItem = NSMenuItem(
-            title: "Enabled", action: #selector(noop), keyEquivalent: "s", target: self)
+            title: "Enabled", action: #selector(toggleEnabled), keyEquivalent: "s", target: self)
         menu.addItem(enabledItem)
         menu.addItem(
             NSMenuItem(
