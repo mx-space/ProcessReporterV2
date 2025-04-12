@@ -79,7 +79,8 @@ class PreferencesHistoryViewController: NSViewController, SettingWindowProtocol 
         searchField.snp.makeConstraints { make in
             make.left.equalToSuperview()
             make.centerY.equalToSuperview()
-            make.width.equalTo(toolbar.snp.width).multipliedBy(0.4)
+            make.width.equalTo(toolbar.snp.width).multipliedBy(0.25)
+            
         }
 
         buttonStack.snp.makeConstraints { make in
