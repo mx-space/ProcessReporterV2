@@ -22,6 +22,16 @@ struct SlackIntegration: UserDefaultsJSONStorable, DictionaryConvertible {
     var customEmoji: String = ""
     var customStatusText: String = ""
 }
+// MARK: - S3 Integration Model
+struct S3Integration: UserDefaultsJSONStorable, DictionaryConvertible {
+    var isEnabled: Bool = false
+    var bucket: String = ""
+    var region: String = "us-east-1"
+    var accessKey: String = ""
+    var secretKey: String = ""
+    var endpoint: String = ""
+    var path: String = ""
+}
 
 extension PreferencesDataModel {
     @UserDefaultsRelay("mixSpaceIntegration", defaultValue: MixSpaceIntegration())
@@ -51,4 +61,23 @@ extension SlackIntegration {
         integration.customStatusText = dict["customStatusText"] as? String ?? ""
         return integration
     }
+}
+
+extension S3Integration {
+    static func fromDictionary(_ dict: [String: Any]) -> S3Integration {
+        var integration = S3Integration()
+        integration.isEnabled = dict["isEnabled"] as? Bool ?? false
+        integration.bucket = dict["bucket"] as? String ?? ""
+        integration.region = dict["region"] as? String ?? "us-east-1"
+        integration.accessKey = dict["accessKey"] as? String ?? ""
+        integration.secretKey = dict["secretKey"] as? String ?? ""
+        integration.endpoint = dict["endpoint"] as? String ?? ""
+        integration.path = dict["path"] as? String ?? ""
+        return integration
+    }
+}
+
+extension PreferencesDataModel {
+    @UserDefaultsRelay("s3Integration", defaultValue: S3Integration())
+    static var s3Integration: BehaviorRelay<S3Integration>
 }

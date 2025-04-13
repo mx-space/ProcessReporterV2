@@ -82,13 +82,13 @@ class PreferencesIntegrationSlackView: IntegrationView {
 
         // Custom Emoji row
         createRow(
-            leftView: NSTextField(labelWithString: "Custom Emoji"),
+            leftView: NSTextField(labelWithString: "Emoji"),
             rightView: customEmojiInput
         )
 
         // Custom Status Text row
         createRow(
-            leftView: NSTextField(labelWithString: "Custom Status Text"),
+            leftView: NSTextField(labelWithString: "Status Text"),
             rightView: customStatusTextInput
         )
 

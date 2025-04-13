@@ -22,6 +22,7 @@ class PreferencesDataModel {
             ],
             "mixSpaceIntegration": PreferencesDataModel.mixSpaceIntegration.value.toDictionary(),
             "slackIntegration": PreferencesDataModel.slackIntegration.value.toDictionary(),
+            "s3Integration": PreferencesDataModel.s3Integration.value.toDictionary(),
             "ignoreNullArtist": PreferencesDataModel.ignoreNullArtist.value,
             "filteredProcesses": PreferencesDataModel.filteredProcesses.value,
             "filteredMediaProcesses": PreferencesDataModel.filteredMediaProcesses.value,
@@ -64,6 +65,10 @@ class PreferencesDataModel {
             if let slackDict = dictionary["slackIntegration"] as? [String: Any] {
                 PreferencesDataModel.slackIntegration.accept(
                     SlackIntegration.fromDictionary(slackDict))
+            }
+            if let s3Dict = dictionary["s3Integration"] as? [String: Any] {
+                PreferencesDataModel.s3Integration.accept(
+                    S3Integration.fromDictionary(s3Dict))
             }
             if let enabledTypesArray = dictionary["enabledTypes"] as? [String] {
                 let enabledTypesSet = ReporterTypesSet(

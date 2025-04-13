@@ -11,6 +11,7 @@ import SnapKit
 enum IntegrationType: String, CaseIterable {
     case mxSpace = "Mix Space"
     case slack = "Slack"
+    case s3 = "S3"
 
     func nsImage() -> NSImage {
         switch self {
@@ -18,6 +19,8 @@ enum IntegrationType: String, CaseIterable {
             return NSImage(named: "mx-space")!
         case .slack:
             return NSImage(named: "slack")!
+        case .s3:
+            return NSImage(named: "s3")!
         }
     }
 
@@ -27,6 +30,8 @@ enum IntegrationType: String, CaseIterable {
             return PreferencesIntegrationMixSpaceView()
         case .slack:
             return PreferencesIntegrationSlackView()
+        case .s3:
+            return PreferencesIntegrationS3View()
         }
     }
 }
