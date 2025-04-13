@@ -113,11 +113,10 @@ struct ApplicationTableView: View {
                         Image(systemName: "plus").bold()
                     }
                     .buttonStyle(.plain)
-                    .controlSize(.small)
+                    .frame(width: 16, height: 16)
 
                     Rectangle().frame(width: 1, height: 16)
                         .foregroundColor(Color(NSColor.separatorColor))
-                        .padding(.horizontal, 2)
 
                     Button(action: {
                         removeSelectedApps()
@@ -125,8 +124,8 @@ struct ApplicationTableView: View {
                         Image(systemName: "minus").bold()
                     }
                     .buttonStyle(.plain)
-                    .controlSize(.small)
                     .disabled(selectedProcessItems.isEmpty)
+                    .frame(width: 16, height: 16)
                 }
                 .padding(4)
             }
@@ -152,7 +151,9 @@ struct ApplicationTableView: View {
                 selectedProcessItems.contains(item.id)
             }
         }
-        selectedProcessItems.removeAll()
+        withAnimation {
+            selectedProcessItems.removeAll()
+        }
         saveFilteredApps()
     }
 
@@ -209,7 +210,9 @@ struct ApplicationTableView: View {
             selectedProcessItems.contains(item.id)
         }
         saveFilteredApps()
-        selectedProcessItems.removeAll()
+        withAnimation {
+            selectedProcessItems.removeAll()
+        }
     }
 
     private func showInFinder(applicationIdentifier: String) {

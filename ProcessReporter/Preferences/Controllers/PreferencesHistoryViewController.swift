@@ -80,7 +80,6 @@ class PreferencesHistoryViewController: NSViewController, SettingWindowProtocol 
             make.left.equalToSuperview()
             make.centerY.equalToSuperview()
             make.width.equalTo(toolbar.snp.width).multipliedBy(0.25)
-            
         }
 
         buttonStack.snp.makeConstraints { make in
@@ -126,6 +125,13 @@ class PreferencesHistoryViewController: NSViewController, SettingWindowProtocol 
         mediaColumn.width = 200
         mediaColumn.sortDescriptorPrototype = NSSortDescriptor(key: "mediaName", ascending: true)
 
+        let mediaProcessColumn = NSTableColumn(
+            identifier: NSUserInterfaceItemIdentifier("mediaProcess"))
+        mediaProcessColumn.title = "Media Process"
+        mediaProcessColumn.width = 150
+        mediaProcessColumn.sortDescriptorPrototype = NSSortDescriptor(
+            key: "mediaProcessName", ascending: true)
+
         let integrationsColumn = NSTableColumn(
             identifier: NSUserInterfaceItemIdentifier("integrations"))
         integrationsColumn.title = "Integrations"
@@ -156,6 +162,7 @@ class PreferencesHistoryViewController: NSViewController, SettingWindowProtocol 
         tableView.addTableColumn(timeColumn)
         tableView.addTableColumn(processColumn)
         tableView.addTableColumn(mediaColumn)
+        tableView.addTableColumn(mediaProcessColumn)
         tableView.addTableColumn(integrationsColumn)
 
         // 将表格视图设置为滚动视图的文档视图
@@ -339,6 +346,13 @@ class PreferencesHistoryViewController: NSViewController, SettingWindowProtocol 
         case "integrations":
             valueToCopy = model.integrations.joined(separator: ", ")
 
+        case "mediaProcess":
+            if let mediaProcessName = model.mediaProcessName {
+                valueToCopy = mediaProcessName
+            } else {
+                valueToCopy = "-"
+            }
+
         default:
             valueToCopy = ""
         }
@@ -485,6 +499,13 @@ extension PreferencesHistoryViewController: NSTableViewDelegate {
 
         case "integrations":
             textField.stringValue = model.integrations.joined(separator: ", ")
+
+        case "mediaProcess":
+            if let mediaProcessName = model.mediaProcessName {
+                textField.stringValue = mediaProcessName
+            } else {
+                textField.stringValue = "-"
+            }
 
         default:
             textField.stringValue = ""

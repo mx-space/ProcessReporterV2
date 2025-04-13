@@ -79,7 +79,15 @@ class Reporter {
         statusItemManager.toggleStatusItemIcon(.syncing)
     }
 
+    private var reporterInitializedTime: Date
+
     private func prepareSend(appName: String) {
+        let now = Date()
+        // Ignore the first 2 seconds after initialization to wait for the setting synchronization to complete
+        if now.timeIntervalSince(reporterInitializedTime) < 2 {
+            return
+        }
+
         let enabledTypes = PreferencesDataModel.shared.enabledTypes.value.types
         if enabledTypes.isEmpty {
             statusItemManager.toggleStatusItemIcon(.paused)
@@ -97,7 +105,7 @@ class Reporter {
         let dataModel = ReportModel(
             processName: "",
             integrations: [],
-            mediaInfo: mediaInfo)
+            mediaInfo: nil)
 
         let shouldIgnoreArtistNull = PreferencesDataModel.shared.ignoreNullArtist.value
 
@@ -108,8 +116,7 @@ class Reporter {
                !shouldIgnoreArtistNull
                || (mediaInfo.artist != nil && !mediaInfo.artist!.isEmpty)
             {
-                dataModel.mediaName = mediaInfo.name
-                dataModel.artist = mediaInfo.artist
+                dataModel.setMediaInfo(mediaInfo)
             }
         }
         // Filter process name
@@ -185,6 +192,7 @@ class Reporter {
     }
 
     init() {
+        reporterInitializedTime = Date()
         subscribeSettingsChanged()
     }
 

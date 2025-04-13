@@ -8,6 +8,7 @@
 import Cocoa
 import RxCocoa
 import RxSwift
+import SnapKit
 
 @MainActor
 class ReporterStatusItemManager: NSObject {
@@ -19,12 +20,10 @@ class ReporterStatusItemManager: NSObject {
 
     private var currentProcessItem: NSMenuItem!
     private var currentMediaNameItem: NSMenuItem!
-    private var currentMediaArtistItem: NSMenuItem!
 
     private var lastSendProcessNameItem: NSMenuItem!
     private var lastSendProcessTimeItem: NSMenuItem!
     private var lastSendMediaNameItem: NSMenuItem!
-    private var lastSendMediaArtistItem: NSMenuItem!
 
     private var lastReportTime: Date?
     private var updateTimer: Timer?
@@ -49,8 +48,10 @@ class ReporterStatusItemManager: NSObject {
     private func synchronizeUI() {
         let preferences = PreferencesDataModel.shared
         enabledItem.state = preferences.isEnabled.value ? .on : .off
-        enableMediaReportButton.state = preferences.enabledTypes.value.types.contains(.media) ? .on : .off
-        enableProcessReportButton.state = preferences.enabledTypes.value.types.contains(.process) ? .on : .off
+        enableMediaReportButton.state =
+            preferences.enabledTypes.value.types.contains(.media) ? .on : .off
+        enableProcessReportButton.state =
+            preferences.enabledTypes.value.types.contains(.process) ? .on : .off
     }
 
     private func setupStatusItem() {
@@ -67,9 +68,6 @@ class ReporterStatusItemManager: NSObject {
         currentMediaNameItem = NSMenuItem(
             title: "No Media", action: #selector(noop), keyEquivalent: "", target: self)
         menu.addItem(currentMediaNameItem)
-        currentMediaArtistItem = NSMenuItem(
-            title: "No Artist", action: #selector(noop), keyEquivalent: "", target: self)
-        menu.addItem(currentMediaArtistItem)
 
         menu.addItem(NSMenuItem.separator())
 
@@ -82,9 +80,6 @@ class ReporterStatusItemManager: NSObject {
         lastSendMediaNameItem = NSMenuItem(
             title: "..Last Media", action: #selector(noop), keyEquivalent: "", target: self)
         menu.addItem(lastSendMediaNameItem)
-        lastSendMediaArtistItem = NSMenuItem(
-            title: "..Last Artist", action: #selector(noop), keyEquivalent: "", target: self)
-        menu.addItem(lastSendMediaArtistItem)
         lastSendProcessTimeItem = NSMenuItem(
             title: "..Last Time", action: #selector(noop), keyEquivalent: "", target: self)
         menu.addItem(lastSendProcessTimeItem)
@@ -101,13 +96,32 @@ class ReporterStatusItemManager: NSObject {
         menu.addItem(NSMenuItem.separator())
 
         menu.addItem(NSMenuItem.sectionHeader(title: "Enabled Reporters"))
-        enableMediaReportButton = NSMenuItem(title: "Media", action: #selector(toggleEnableMedia), keyEquivalent: "", target: self)
-        enableProcessReportButton = NSMenuItem(title: "Process", action: #selector(toggleEnableProcess), keyEquivalent: "", target: self)
+        enableMediaReportButton = NSMenuItem(
+            title: "Media", action: #selector(toggleEnableMedia), keyEquivalent: "", target: self)
+        enableProcessReportButton = NSMenuItem(
+            title: "Process", action: #selector(toggleEnableProcess), keyEquivalent: "",
+            target: self)
         menu.addItem(enableMediaReportButton)
         menu.addItem(enableProcessReportButton)
 
         menu.addItem(NSMenuItem.separator())
 
+        #if DEBUG
+            let debugItem = NSMenuItem(
+                title: "Debug UI", action: #selector(debugUI), keyEquivalent: "", target: self)
+            let debugButton = NSButton(
+                image: NSImage(
+                    systemSymbolName: "snowflake", accessibilityDescription: "Debug UI")!,
+                target: self, action: #selector(debugUI))
+            debugButton.bezelStyle = .inline
+            debugItem.view = debugButton
+            menu.addItem(debugItem)
+            debugButton.snp.makeConstraints { make in
+                make.width.height.equalTo(16)
+                make.centerX.equalToSuperview()
+            }
+
+        #endif
         menu.addItem(
             NSMenuItem(title: "Quit", action: #selector(NSApp.terminate), keyEquivalent: "q"))
 
@@ -116,6 +130,15 @@ class ReporterStatusItemManager: NSObject {
 
         setupUpdateTimer()
     }
+
+    #if DEBUG
+        @objc private func debugUI() {
+            let timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+                sleep(50)
+            }
+            RunLoop.main.add(timer, forMode: .common)
+        }
+    #endif
 
     private func setupUpdateTimer() {
         updateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
@@ -158,7 +181,8 @@ class ReporterStatusItemManager: NSObject {
                 accessibilityDescription: "Syncing")
         case .partialError:
             button.image = NSImage(
-                systemSymbolName: "exclamationmark.icloud", accessibilityDescription: "Partial Error")
+                systemSymbolName: "exclamationmark.icloud",
+                accessibilityDescription: "Partial Error")
         case .error:
             button.image = NSImage(
                 systemSymbolName: "exclamationmark.icloud.fill", accessibilityDescription: "Error")
@@ -178,20 +202,44 @@ class ReporterStatusItemManager: NSObject {
         _ mediaInfo: MediaInfo? = nil
     ) {
         if let mediaInfo = mediaInfo, let name = mediaInfo.name {
-            currentMediaNameItem.title = name
-            currentMediaArtistItem.title = mediaInfo.artist ?? "No Artist"
+            currentMediaNameItem.title = formatMediaName(name, mediaInfo.artist)
             if let base64 = mediaInfo.image, let data = Data(base64Encoded: base64) {
-                currentMediaNameItem.image = {
-                    let image = NSImage(data: data)
-                    image?.size = NSSize(width: 36, height: 36)
+                let nsView = NSView()
+                let stack = NSStackView()
+                stack.orientation = .horizontal
+                stack.spacing = 4
+                let imageView = NSImageView(image: NSImage(data: data)!)
+                imageView.wantsLayer = true
+                imageView.layer?.cornerRadius = 6
+                imageView.layer?.masksToBounds = true
+                imageView.snp.makeConstraints { make in
 
-                    return image?.withRoundedCorners(radius: 6)
-                }()
+                    make.width.height.equalTo(36)
+                }
+                stack.addArrangedSubview(imageView)
+                stack.addArrangedSubview(
+                    NSTextField(labelWithString: formatMediaName(name, mediaInfo.artist)))
+                nsView.addSubview(stack)
+                currentMediaNameItem.view = nsView
+                nsView.snp.makeConstraints { make in
+                    make.height.equalTo(36)
+                    make.width.equalToSuperview()
+                }
+                stack.snp.makeConstraints { make in
+                    make.horizontalEdges.equalToSuperview().offset(24)
+                    
+                }
             }
+            //     currentMediaNameItem.image = {
+            //         let image = NSImage(data: data)
+            //         image?.size = NSSize(width: 36, height: 36)
+
+            //         return image?.withRoundedCorners(radius: 6)
+            //     }()
+            // }
 
         } else {
-            currentMediaNameItem.title = "No Media"
-            currentMediaArtistItem.title = "No Artist"
+            currentMediaNameItem.title = "..No Media"
         }
     }
 
@@ -200,10 +248,14 @@ class ReporterStatusItemManager: NSObject {
         lastReportTime = info.timeStamp
         updateLastSendTimeDisplay()
 
-        currentMediaNameItem.title = info.mediaName == nil ? "No Media" : info.mediaName!
-        currentMediaArtistItem.title = info.artist == nil ? "No Artist" : info.artist!
-        lastSendMediaNameItem.title = info.mediaName == nil ? "No Media" : info.mediaName!
-        lastSendMediaArtistItem.title = info.artist == nil ? "No Artist" : info.artist!
+        lastSendMediaNameItem.title = formatMediaName(info.mediaName, info.artist)
+    }
+
+    func formatMediaName(_ mediaName: String?, _ artist: String?) -> String {
+        if let mediaName = mediaName, let artist = artist {
+            return "\(mediaName) - \(artist)"
+        }
+        return mediaName == nil ? "No Media" : mediaName!
     }
 }
 
@@ -220,13 +272,13 @@ extension ReporterStatusItemManager: NSMenuDelegate {
             updateCurrentMediaItem(mediaInfo)
         }
 
-//        #if DEBUG
-//        let timer = Timer.init(timeInterval: 3, repeats: false) { _ in
-//            print("Debug: Menu opened")
-//            sleep(50)
-//        }
-//        RunLoop.main.add(timer, forMode: .common)
-//        #endif
+        //        #if DEBUG
+        //        let timer = Timer.init(timeInterval: 3, repeats: false) { _ in
+        //            print("Debug: Menu opened")
+        //            sleep(50)
+        //        }
+        //        RunLoop.main.add(timer, forMode: .common)
+        //        #endif
     }
 }
 
