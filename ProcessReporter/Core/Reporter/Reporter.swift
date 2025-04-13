@@ -88,7 +88,6 @@ class Reporter {
             statusItemManager.toggleStatusItemIcon(.syncing)
         }
 
-        // TODO
         // Check if the process is in the filtered list
         let filteredProcesses = PreferencesDataModel.filteredProcesses.value
         let mediaInfo = getMediaInfo()

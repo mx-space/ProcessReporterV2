@@ -53,7 +53,11 @@ struct ApplicationTableView: View {
 
             .tableColumnHeaders(.hidden)
             .tableStyle(BorderedTableStyle())
-            .clipShape(RoundedRectangle(cornerRadius: 4).inset(by: 1))
+            .clipShape(RoundedRectangle(cornerRadius: 8).inset(by: 1))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+            )
             .padding(.top, 8)
             .frame(minHeight: 200)
             .overlay(

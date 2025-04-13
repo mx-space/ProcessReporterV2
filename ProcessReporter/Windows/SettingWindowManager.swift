@@ -23,7 +23,7 @@ class SettingWindowManager: NSObject {
 
             let window = SettingWindow()
 
-            self.settingWindow = window // Store the strong reference to the NEW window
+            self.settingWindow = window  // Store the strong reference to the NEW window
 
             window.makeKeyAndOrderFront(nil)
         }
@@ -31,10 +31,9 @@ class SettingWindowManager: NSObject {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    // Optional: Add a method to explicitly close/release the window if needed
     func closeWindow() {
         self.settingWindow?.close()
-
+        AppUtility.shared.clearCache()
         self.settingWindow = nil
     }
 }
