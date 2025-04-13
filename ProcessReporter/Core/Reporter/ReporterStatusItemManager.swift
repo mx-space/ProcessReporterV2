@@ -193,39 +193,6 @@ class ReporterStatusItemManager: NSObject {
         if let mediaInfo = mediaInfo, let name = mediaInfo.name {
             currentMediaNameItem.title = formatMediaName(name, mediaInfo.artist)
             if let base64 = mediaInfo.image, let data = Data(base64Encoded: base64) {
-                //                let nsView = NSView()
-                //                let hStack = NSStackView()
-                //                hStack.orientation = .horizontal
-                //                hStack.spacing = 4
-                //                let imageView = NSImageView(image: NSImage(data: data)!)
-                //                imageView.wantsLayer = true
-                //                imageView.layer?.cornerRadius = 6
-                //                imageView.layer?.masksToBounds = true
-                //                imageView.snp.makeConstraints { make in
-                //
-                //                    make.width.height.equalTo(36)
-                //                }
-                //                hStack.addArrangedSubview(imageView)
-                //                let vStack = NSStackView()
-                //                // hStack.addArrangedSubview(
-                //                //     NSTextField(labelWithString: formatMediaName(name, mediaInfo.artist)))
-                //                vStack.orientation = .vertical
-                //                vStack.spacing = 4
-                //                vStack.addArrangedSubview(
-                //                    NSTextField(labelWithString: name))
-                //                vStack.addArrangedSubview(
-                //                    NSTextField(labelWithString: mediaInfo.artist ?? "-"))
-                //                vStack.layerContentsPlacement = .left
-                //                hStack.addArrangedSubview(vStack)
-                //                nsView.addSubview(hStack)
-                //                currentMediaNameItem.view = nsView
-                //                nsView.snp.makeConstraints { make in
-                //                    make.height.equalTo(36)
-                //                    make.width.equalToSuperview()
-                //                }
-                //                hStack.snp.makeConstraints { make in
-                //                    make.horizontalEdges.equalToSuperview().offset(24)
-                //                }
                 let cell = NSHostingView(
                     rootView: MediaInfoCellView(
                         mediaName: name, artist: mediaInfo.artist, image: NSImage(data: data)))
@@ -235,13 +202,6 @@ class ReporterStatusItemManager: NSObject {
                     make.height.equalTo(50)
                 }
             }
-            //     currentMediaNameItem.image = {
-            //         let image = NSImage(data: data)
-            //         image?.size = NSSize(width: 36, height: 36)
-
-            //         return image?.withRoundedCorners(radius: 6)
-            //     }()
-            // }
 
         } else {
             currentMediaNameItem.title = "..No Media"
