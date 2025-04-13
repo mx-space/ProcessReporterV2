@@ -9,6 +9,7 @@ import Cocoa
 import RxCocoa
 import RxSwift
 import SnapKit
+import SwiftUI
 
 @MainActor
 class ReporterStatusItemManager: NSObject {
@@ -108,17 +109,14 @@ class ReporterStatusItemManager: NSObject {
 
         #if DEBUG
             let debugItem = NSMenuItem(
-                title: "Debug UI", action: #selector(debugUI), keyEquivalent: "", target: self)
-            let debugButton = NSButton(
-                image: NSImage(
-                    systemSymbolName: "snowflake", accessibilityDescription: "Debug UI")!,
-                target: self, action: #selector(debugUI))
-            debugButton.bezelStyle = .inline
-            debugItem.view = debugButton
+                title: "Debug UI", action: nil, keyEquivalent: "", target: self)
+
+            debugItem.view = DebugUICell()
+
             menu.addItem(debugItem)
-            debugButton.snp.makeConstraints { make in
-                make.width.height.equalTo(16)
-                make.centerX.equalToSuperview()
+            debugItem.view!.snp.makeConstraints { make in
+                make.width.equalToSuperview()
+                make.height.equalTo(22)
             }
 
         #endif
@@ -130,15 +128,6 @@ class ReporterStatusItemManager: NSObject {
 
         setupUpdateTimer()
     }
-
-    #if DEBUG
-        @objc private func debugUI() {
-            let timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-                sleep(50)
-            }
-            RunLoop.main.add(timer, forMode: .common)
-        }
-    #endif
 
     private func setupUpdateTimer() {
         updateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
@@ -204,30 +193,46 @@ class ReporterStatusItemManager: NSObject {
         if let mediaInfo = mediaInfo, let name = mediaInfo.name {
             currentMediaNameItem.title = formatMediaName(name, mediaInfo.artist)
             if let base64 = mediaInfo.image, let data = Data(base64Encoded: base64) {
-                let nsView = NSView()
-                let stack = NSStackView()
-                stack.orientation = .horizontal
-                stack.spacing = 4
-                let imageView = NSImageView(image: NSImage(data: data)!)
-                imageView.wantsLayer = true
-                imageView.layer?.cornerRadius = 6
-                imageView.layer?.masksToBounds = true
-                imageView.snp.makeConstraints { make in
-
-                    make.width.height.equalTo(36)
-                }
-                stack.addArrangedSubview(imageView)
-                stack.addArrangedSubview(
-                    NSTextField(labelWithString: formatMediaName(name, mediaInfo.artist)))
-                nsView.addSubview(stack)
-                currentMediaNameItem.view = nsView
-                nsView.snp.makeConstraints { make in
-                    make.height.equalTo(36)
-                    make.width.equalToSuperview()
-                }
-                stack.snp.makeConstraints { make in
-                    make.horizontalEdges.equalToSuperview().offset(24)
-                    
+                //                let nsView = NSView()
+                //                let hStack = NSStackView()
+                //                hStack.orientation = .horizontal
+                //                hStack.spacing = 4
+                //                let imageView = NSImageView(image: NSImage(data: data)!)
+                //                imageView.wantsLayer = true
+                //                imageView.layer?.cornerRadius = 6
+                //                imageView.layer?.masksToBounds = true
+                //                imageView.snp.makeConstraints { make in
+                //
+                //                    make.width.height.equalTo(36)
+                //                }
+                //                hStack.addArrangedSubview(imageView)
+                //                let vStack = NSStackView()
+                //                // hStack.addArrangedSubview(
+                //                //     NSTextField(labelWithString: formatMediaName(name, mediaInfo.artist)))
+                //                vStack.orientation = .vertical
+                //                vStack.spacing = 4
+                //                vStack.addArrangedSubview(
+                //                    NSTextField(labelWithString: name))
+                //                vStack.addArrangedSubview(
+                //                    NSTextField(labelWithString: mediaInfo.artist ?? "-"))
+                //                vStack.layerContentsPlacement = .left
+                //                hStack.addArrangedSubview(vStack)
+                //                nsView.addSubview(hStack)
+                //                currentMediaNameItem.view = nsView
+                //                nsView.snp.makeConstraints { make in
+                //                    make.height.equalTo(36)
+                //                    make.width.equalToSuperview()
+                //                }
+                //                hStack.snp.makeConstraints { make in
+                //                    make.horizontalEdges.equalToSuperview().offset(24)
+                //                }
+                let cell = NSHostingView(
+                    rootView: MediaInfoCellView(
+                        mediaName: name, artist: mediaInfo.artist, image: NSImage(data: data)))
+                cell.wantsLayer = true
+                currentMediaNameItem.view = cell
+                cell.snp.makeConstraints { make in
+                    make.height.equalTo(50)
                 }
             }
             //     currentMediaNameItem.image = {
@@ -271,14 +276,6 @@ extension ReporterStatusItemManager: NSMenuDelegate {
         if mediaInfo.playing {
             updateCurrentMediaItem(mediaInfo)
         }
-
-        //        #if DEBUG
-        //        let timer = Timer.init(timeInterval: 3, repeats: false) { _ in
-        //            print("Debug: Menu opened")
-        //            sleep(50)
-        //        }
-        //        RunLoop.main.add(timer, forMode: .common)
-        //        #endif
     }
 }
 
@@ -320,3 +317,110 @@ extension ReporterStatusItemManager {
         PreferencesDataModel.shared.enabledTypes.accept(.init(types: snapshot))
     }
 }
+
+struct MediaInfoCellView: View {
+    var mediaName: String?
+    var artist: String?
+    var image: NSImage?
+
+    @State var hover: Bool = false
+    var body: some View {
+        ZStack {
+            Color(NSColor.controlAccentColor).opacity(hover ? 1 : 0).clipShape(RoundedRectangle(cornerRadius: 4))
+                .padding(.horizontal, 5)
+            HStack {
+                Image(nsImage: image ?? NSImage())
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 36, height: 36)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                VStack(alignment: .leading) {
+                    Text(mediaName ?? "No Media")
+                        .font(.headline)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    Text(artist ?? "-")
+                        .font(.subheadline)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .foregroundStyle(.secondary)
+                }.padding(.leading, 4)
+                Spacer()
+            }.frame(minWidth: 0, minHeight: 40).padding(.leading, 24)
+
+        }.onHover { hover in
+            self.hover = hover
+        }
+    }
+}
+
+#if DEBUG
+    class DebugUICell: NSStackView {
+        var backgroundView: NSView!
+        convenience init() {
+            self.init(frame: .zero)
+
+            let stackView = self
+            stackView.orientation = .horizontal
+            stackView.spacing = 8
+            backgroundView = NSView()
+            stackView.addSubview(backgroundView)
+            backgroundView.snp.makeConstraints { make in
+                make.horizontalEdges.equalToSuperview()
+                make.verticalEdges.equalToSuperview()
+                make.width.equalToSuperview()
+            }
+
+            backgroundView.wantsLayer = true
+            backgroundView.layer?.opacity = 0
+            backgroundView.layer?.backgroundColor = NSColor.controlAccentColor.cgColor
+            backgroundView.layer?.cornerRadius = 4
+
+            let debugIcon = NSImageView(
+                image: NSImage(systemSymbolName: "snowflake", accessibilityDescription: "Debug UI")!
+            )
+            debugIcon.frame.size = NSSize(width: 16, height: 16)
+            stackView.addArrangedSubview(debugIcon)
+            debugIcon.snp.makeConstraints { make in
+                make.left.equalTo(24)
+            }
+            let debugLabel = NSTextField(labelWithString: "Debug UI")
+
+            debugLabel.isEditable = false
+            stackView.addArrangedSubview(debugLabel)
+
+            stackView.gestureRecognizers = [
+                NSClickGestureRecognizer(target: self, action: #selector(debugUI))
+            ]
+        }
+
+        override func awakeFromNib() {
+            // 创建 NSTrackingArea
+            let trackingArea = NSTrackingArea(
+                rect: bounds, // 跟踪区域（这里是整个视图）
+                options: [.mouseEnteredAndExited, .activeAlways], // 跟踪选项
+                owner: self, // 事件处理对象
+                userInfo: nil // 可选的用户信息
+            )
+
+            // 添加到视图
+            addTrackingArea(trackingArea)
+        }
+
+        @objc private func debugUI() {
+            let timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+                sleep(50)
+            }
+            RunLoop.main.add(timer, forMode: .common)
+        }
+
+        override func mouseEntered(with event: NSEvent) {
+            backgroundView.layer?.opacity = 1
+        }
+
+        override func mouseExited(with event: NSEvent) {
+            backgroundView.layer?.opacity = 0
+        }
+    }
+#endif
