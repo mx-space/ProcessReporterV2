@@ -272,6 +272,83 @@ class S3Uploader {
             return "application/octet-stream"
         }
     }
+
+    // Get authorization header for AWS Signature V4
+    private func getAuthHeaderV4(
+        httpMethod: String,
+        canonicalURI: String,
+        queryParams: String,
+        headers: [String: String],
+        payloadHash: String,
+        amzDate: String,
+        dateStamp: String
+    ) -> String {
+        // Step 1: Create canonical request
+        // Filter headers that should be signed (e.g., host, x-amz-*, content-type)
+        let headersToSign = headers.filter { key, _ in
+            key.lowercased() == "host" || key.lowercased().starts(with: "x-amz-")
+                || key.lowercased() == "content-type"
+        }
+
+        let canonicalHeadersString = getCanonicalHeaders(headers: headersToSign)
+        let signedHeadersString = getSignedHeaders(headers: headersToSign)
+
+        let canonicalRequest = [
+            httpMethod,
+            canonicalURI,
+            queryParams,
+            canonicalHeadersString,  // Uses corrected function
+            signedHeadersString,  // Uses corrected function
+            payloadHash,
+        ].joined(separator: "\n")
+
+        // Step 2: Create string to sign
+        let algorithm = "AWS4-HMAC-SHA256"
+        let credentialScope = [dateStamp, region, "s3", "aws4_request"].joined(separator: "/")
+        let canonicalRequestHash = sha256(string: canonicalRequest)
+
+        let stringToSign = [
+            algorithm,
+            amzDate,
+            credentialScope,
+            canonicalRequestHash,
+        ].joined(separator: "\n")
+
+        // Step 3: Calculate signature
+        let signature = calculateSignature(
+            stringToSign: stringToSign,
+            dateStamp: dateStamp
+        )
+
+        // Step 4: Create authorization header
+        return [
+            "\(algorithm) Credential=\(accessKey)/\(credentialScope)",
+            "SignedHeaders=\(signedHeadersString)",
+            "Signature=\(signature)",
+        ].joined(separator: ", ")
+    }
+
+    // Get canonical headers string - CORRECTED
+    private func getCanonicalHeaders(headers: [String: String]) -> String {
+        return
+            headers
+            .map { (key, value) -> (String, String) in
+                // Lowercase key, trim whitespace from value
+                (key.lowercased(), value.trimmingCharacters(in: .whitespacesAndNewlines))
+            }
+            .sorted { $0.0 < $1.0 }  // Sort by key
+            .map { "\($0.0):\($0.1)" }  // Format as key:value
+            .joined(separator: "\n") + "\n"  // Join with newline AND add a final newline
+    }
+
+    // Get signed headers string - CORRECTED (uses the same filtered headers)
+    private func getSignedHeaders(headers: [String: String]) -> String {
+        return
+            headers
+            .map { $0.key.lowercased() }  // Lowercase keys
+            .sorted()  // Sort keys
+            .joined(separator: ";")  // Join with semicolon
+    }
 }
 
 extension S3Uploader {
