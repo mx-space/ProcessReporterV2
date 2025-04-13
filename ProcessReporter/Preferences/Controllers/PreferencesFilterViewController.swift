@@ -21,7 +21,7 @@ class PreferencesFilterViewController: NSViewController, SettingWindowProtocol {
         let scrollView = NSScrollView()
         scrollView.hasVerticalScroller = true
         scrollView.autohidesScrollers = true
-        scrollView.automaticallyAdjustsContentInsets = true
+        scrollView.automaticallyAdjustsContentInsets = false
         return scrollView
     }()
 
@@ -40,7 +40,7 @@ class PreferencesFilterViewController: NSViewController, SettingWindowProtocol {
     private lazy var processDescriptionLabel: NSTextField = {
         let label = NSTextField(
             labelWithString:
-                "Applications added to this list will be ignored when reporting processes.")
+            "Applications added to this list will be ignored when reporting processes.")
         label.font = .systemFont(ofSize: 13)
         label.textColor = .secondaryLabelColor
         return label
@@ -55,9 +55,7 @@ class PreferencesFilterViewController: NSViewController, SettingWindowProtocol {
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = false
         scrollView.autohidesScrollers = true
-        scrollView.borderType = .bezelBorder
-        scrollView.drawsBackground = true
-        scrollView.backgroundColor = .controlBackgroundColor
+
         return scrollView
     }()
 
@@ -67,9 +65,7 @@ class PreferencesFilterViewController: NSViewController, SettingWindowProtocol {
         stackView.spacing = 0
         stackView.distribution = .fillEqually
         stackView.wantsLayer = true
-        stackView.layer?.cornerRadius = 4
-        stackView.layer?.borderWidth = 1
-        stackView.layer?.borderColor = NSColor.separatorColor.cgColor
+        stackView.layer?.masksToBounds = true
         return stackView
     }()
 
@@ -117,9 +113,7 @@ class PreferencesFilterViewController: NSViewController, SettingWindowProtocol {
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = false
         scrollView.autohidesScrollers = true
-        scrollView.borderType = .bezelBorder
-        scrollView.drawsBackground = true
-        scrollView.backgroundColor = .controlBackgroundColor
+
         return scrollView
     }()
 
@@ -129,9 +123,7 @@ class PreferencesFilterViewController: NSViewController, SettingWindowProtocol {
         stackView.spacing = 0
         stackView.distribution = .fillEqually
         stackView.wantsLayer = true
-        stackView.layer?.cornerRadius = 4
-        stackView.layer?.borderWidth = 1
-        stackView.layer?.borderColor = NSColor.separatorColor.cgColor
+
         stackView.layer?.masksToBounds = true
         return stackView
     }()
@@ -172,7 +164,7 @@ class PreferencesFilterViewController: NSViewController, SettingWindowProtocol {
     private func setupTableViews() {
         // 初始化进程表格
         processTableView = CustomTableView()
-        processTableView.style = .plain
+        processTableView.style = .sourceList
         processTableView.usesAlternatingRowBackgroundColors = true
         processTableView.rowHeight = 24
         processTableView.gridStyleMask = .solidHorizontalGridLineMask
@@ -183,6 +175,11 @@ class PreferencesFilterViewController: NSViewController, SettingWindowProtocol {
         processTableView.autoresizingMask = [.width]
         processTableView.target = self
         processTableView.action = #selector(tableViewClicked(_:))
+        processTableView.wantsLayer = true
+        processTableView.layer?.borderWidth = 1
+        processTableView.layer?.borderColor = NSColor.separatorColor.cgColor
+        processTableView.layer?.cornerRadius = 8
+
         // 设置键盘处理
         (processTableView as? CustomTableView)?.keyActionHandler = self
 
@@ -223,7 +220,7 @@ class PreferencesFilterViewController: NSViewController, SettingWindowProtocol {
 
         // 初始化媒体表格
         mediaTableView = CustomTableView()
-        processTableView.style = .plain
+        processTableView.style = .sourceList
         mediaTableView.usesAlternatingRowBackgroundColors = true
         mediaTableView.rowHeight = 24
         mediaTableView.gridStyleMask = .solidHorizontalGridLineMask
@@ -236,6 +233,10 @@ class PreferencesFilterViewController: NSViewController, SettingWindowProtocol {
         mediaTableView.action = #selector(tableViewClicked(_:))
         // 设置键盘处理
         (mediaTableView as? CustomTableView)?.keyActionHandler = self
+        mediaTableView.wantsLayer = true
+        mediaTableView.layer?.borderWidth = 1
+        mediaTableView.layer?.borderColor = NSColor.separatorColor.cgColor
+        mediaTableView.layer?.cornerRadius = 8
 
         let mediaIconColumn = NSTableColumn(
             identifier: NSUserInterfaceItemIdentifier("MediaIconColumn"))
@@ -596,7 +597,7 @@ class PreferencesFilterViewController: NSViewController, SettingWindowProtocol {
             } else {
                 // 如果没有选中的行，删除右键点击的项目
                 guard let clickInfo = sender.representedObject as? [String: Any],
-                    let row = clickInfo["row"] as? Int
+                      let row = clickInfo["row"] as? Int
                 else {
                     return
                 }
@@ -615,7 +616,7 @@ class PreferencesFilterViewController: NSViewController, SettingWindowProtocol {
             } else {
                 // 如果没有选中的行，删除右键点击的项目
                 guard let clickInfo = sender.representedObject as? [String: Any],
-                    let row = clickInfo["row"] as? Int
+                      let row = clickInfo["row"] as? Int
                 else {
                     return
                 }
@@ -632,8 +633,8 @@ class PreferencesFilterViewController: NSViewController, SettingWindowProtocol {
     @objc private func contextMenuOpenInFinder(_ sender: NSMenuItem) {
         // Use the clicked row stored in the menu item's representedObject
         guard let clickInfo = sender.representedObject as? [String: Any],
-            let row = clickInfo["row"] as? Int,
-            let tableType = clickInfo["tableType"] as? Int
+              let row = clickInfo["row"] as? Int,
+              let tableType = clickInfo["tableType"] as? Int
         else {
             return
         }
@@ -655,7 +656,7 @@ class PreferencesFilterViewController: NSViewController, SettingWindowProtocol {
         }
 
         guard let bundleID = bundleID,
-            let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID)
+              let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID)
         else {
             return
         }
@@ -664,6 +665,7 @@ class PreferencesFilterViewController: NSViewController, SettingWindowProtocol {
     }
 
     // MARK: - Table Click Handling
+
     @objc private func tableViewClicked(_ sender: NSTableView) {
         // 获取当前鼠标位置
         let mouseLocation = NSEvent.mouseLocation
@@ -901,22 +903,22 @@ extension PreferencesFilterViewController: NSMenuDelegate {
 }
 
 // MARK: - Custom TableView
+
 private class CustomTableView: NSTableView {
     weak var keyActionHandler: CustomTableViewKeyHandler?
 
     override func mouseDown(with event: NSEvent) {
         // 获取鼠标点击位置
-        let point = self.convert(event.locationInWindow, from: nil)
+        let point = convert(event.locationInWindow, from: nil)
         let row = self.row(at: point)
 
         // 如果点击的是空白区域，取消所有选择
         if row == -1 {
-            self.deselectAll(nil)
+            deselectAll(nil)
             // 通知外部更新按钮状态
             NotificationCenter.default.post(
                 name: NSTableView.selectionDidChangeNotification,
-                object: self
-            )
+                object: self)
         } else {
             // 否则调用默认处理
             super.mouseDown(with: event)
@@ -945,6 +947,7 @@ protocol CustomTableViewKeyHandler: AnyObject {
 }
 
 // MARK: - CustomTableViewKeyHandler
+
 extension PreferencesFilterViewController: CustomTableViewKeyHandler {
     func handleDeleteKeyPress(in tableView: NSTableView) {
         if tableView == processTableView {
