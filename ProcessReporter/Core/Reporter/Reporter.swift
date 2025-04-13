@@ -16,6 +16,10 @@ class Reporter {
     private var mapping = [String: ReporterOptions]()
     private var statusItemManager = ReporterStatusItemManager()
 
+    private var cachedFilteredProcessAppNames = [String]()
+    private var cachedFilteredMediaAppNames = [String]()
+    private var disposers: [Disposable] = []
+
     public func register(name: String, options: ReporterOptions) {
         mapping[name] = options
     }
@@ -54,8 +58,8 @@ class Reporter {
             // 如果有失败的情况，将所有失败信息组合起来
             let errorMessage =
                 failures
-                .map { "\($0.0): \($0.1)" }
-                .joined(separator: ", ")
+                    .map { "\($0.0): \($0.1)" }
+                    .joined(separator: ", ")
             return .failure(
                 .unknown(
                     message: "Some handlers failed: \(errorMessage)",
@@ -88,12 +92,7 @@ class Reporter {
             statusItemManager.toggleStatusItemIcon(.syncing)
         }
 
-        // Check if the process is in the filtered list
-        let filteredProcesses = PreferencesDataModel.filteredProcesses.value
         let mediaInfo = getMediaInfo()
-
-        // Check if the media process is in the filtered list
-        let filteredMediaProcesses = PreferencesDataModel.filteredMediaProcesses.value
 
         let dataModel = ReportModel(
             processName: "",
@@ -101,13 +100,20 @@ class Reporter {
             mediaInfo: mediaInfo)
 
         let shouldIgnoreArtistNull = PreferencesDataModel.shared.ignoreNullArtist.value
+
         if enabledTypes.contains(.media), let mediaInfo = mediaInfo, mediaInfo.playing {
-            if !shouldIgnoreArtistNull || (mediaInfo.artist != nil && !mediaInfo.artist!.isEmpty) {
+            // Filter media name
+
+            if !cachedFilteredMediaAppNames.contains(mediaInfo.processName),
+               !shouldIgnoreArtistNull
+               || (mediaInfo.artist != nil && !mediaInfo.artist!.isEmpty)
+            {
                 dataModel.mediaName = mediaInfo.name
                 dataModel.artist = mediaInfo.artist
             }
         }
-        if enabledTypes.contains(.process) {
+        // Filter process name
+        if enabledTypes.contains(.process), !cachedFilteredProcessAppNames.contains(appName) {
             dataModel.processName = appName
         }
         if let mediaInfo = mediaInfo, mediaInfo.playing {
@@ -156,15 +162,14 @@ class Reporter {
         statusItemManager.toggleStatusItemIcon(.paused)
     }
 
-    private var disposers: [Disposable] = []
     private var timer: Timer?
     private func setupTimer() {
         disposeTimer()
 
         let interval = PreferencesDataModel.shared.sendInterval.value
         timer = Timer.scheduledTimer(
-            withTimeInterval: TimeInterval(interval.rawValue), repeats: true
-        ) { [weak self] _ in
+            withTimeInterval: TimeInterval(interval.rawValue), repeats: true)
+        { [weak self] _ in
             Task { @MainActor in
                 guard let self = self else { return }
                 if let info = ApplicationMonitor.shared.getFocusedWindowInfo() {
@@ -180,6 +185,40 @@ class Reporter {
     }
 
     init() {
+        subscribeSettingsChanged()
+    }
+
+    deinit {
+        for disposer in disposers {
+            disposer.dispose()
+        }
+    }
+}
+
+extension Reporter {
+    private func subscribeSettingsChanged() {
+        subscribeGeneralSettingsChanged()
+        subscribeFilterSettingsChanged()
+    }
+
+    private func subscribeFilterSettingsChanged() {
+        let d1 = PreferencesDataModel.filteredProcesses.subscribe { [weak self] appIds in
+            for appId in appIds {
+                let appInfo = AppUtility.shared.getAppInfo(for: appId)
+                self?.cachedFilteredProcessAppNames.append(appInfo.displayName)
+            }
+        }
+        let d2 = PreferencesDataModel.filteredMediaProcesses.subscribe { [weak self] appIds in
+            self?.cachedFilteredMediaAppNames = appIds
+            for appId in appIds {
+                let appInfo = AppUtility.shared.getAppInfo(for: appId)
+                self?.cachedFilteredMediaAppNames.append(appInfo.displayName)
+            }
+        }
+        disposers.append(contentsOf: [d1, d2])
+    }
+
+    private func subscribeGeneralSettingsChanged() {
         let preferences = PreferencesDataModel.shared
 
         let d1 = preferences.isEnabled.subscribe { [weak self] enabled in
@@ -217,11 +256,5 @@ class Reporter {
         }
 
         disposers.append(contentsOf: [d1, d2, d3])
-    }
-
-    deinit {
-        for disposer in disposers {
-            disposer.dispose()
-        }
     }
 }
