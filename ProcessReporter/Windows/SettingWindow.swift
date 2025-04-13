@@ -16,7 +16,7 @@ class SettingWindow: NSWindow {
 
     private let rootViewController = NSViewController()
 
-    private let defaultFrameSize: NSSize = .init(width: 800, height: 0)
+    private lazy var defaultFrameSize: NSSize = generalVC.frameSize
 
     // UserDefaults keys for window position and size
     private let windowFrameKey = "SettingWindowFrame"
@@ -31,38 +31,49 @@ class SettingWindow: NSWindow {
         self.isReleasedWhenClosed = false
         title = "Settings"
 
-        // Try to restore saved position and size
-        if let savedFrameData = UserDefaults.standard.data(forKey: windowFrameKey),
-           let nsValue = try? NSKeyedUnarchiver.unarchivedObject(
-               ofClass: NSValue.self, from: savedFrameData),
-           let savedFrame = nsValue.rectValue as NSRect?
-        {
-            // Check if the saved frame is visible on any current screen
-            var isOnScreen = false
-            for screen in NSScreen.screens {
-                if screen.frame.intersects(savedFrame) {
-                    isOnScreen = true
-                    break
-                }
-            }
-
-            if isOnScreen {
-                setFrame(savedFrame, display: true)
-            } else {
-                // Fallback to default center position
-                setFrame(.init(origin: .zero, size: defaultFrameSize), display: true)
-                centerWindowOnScreen()
-            }
-        } else {
-            // No saved data, use default
-            setFrame(.init(origin: .zero, size: defaultFrameSize), display: true)
-            centerWindowOnScreen()
-        }
+        positionWindow()
 
         delegate = self
 
         loadView()
         switchToTab(.general)
+    }
+
+    private func positionWindow() {
+//        // Try to restore saved position and size
+//        if let savedFrameData = UserDefaults.standard.data(forKey: windowFrameKey),
+//           let nsValue = try? NSKeyedUnarchiver.unarchivedObject(
+//               ofClass: NSValue.self, from: savedFrameData),
+//           let savedFrame = nsValue.rectValue as NSRect?
+//        {
+//            // Check if the saved frame is visible on any current screen
+//            var isOnScreen = false
+//            for screen in NSScreen.screens {
+//                if screen.frame.intersects(savedFrame) {
+//                    isOnScreen = true
+//                    break
+//                }
+//            }
+//
+//            if isOnScreen {
+//                setFrame(savedFrame, display: true)
+//            } else {
+//                // Fallback to default center position
+//                setFrame(.init(origin: .zero, size: defaultFrameSize), display: true)
+//                centerWindowOnScreen()
+//            }
+//        } else {
+//            // No saved data, use default
+//            setFrame(.init(origin: .zero, size: defaultFrameSize), display: true)
+//            centerWindowOnScreen()
+//        }
+#if DEBUG
+        let visibleFrame = NSScreen.main!.visibleFrame
+        setFrame(.init(origin: .init(x: visibleFrame.minX + 20, y: visibleFrame.height / 2 - 500), size: defaultFrameSize), display: true)
+#else
+        setFrame(.init(origin: .zero, size: defaultFrameSize), display: true)
+        centerWindowOnScreen()
+#endif
     }
 
     private func centerWindowOnScreen() {
@@ -174,16 +185,12 @@ class SettingWindow: NSWindow {
         case filter
     }
 
-    @objc func closeWindow() {
-        orderOut(nil)
-    }
-
-    private func saveWindowFrame() {
-        let nsValue = NSValue(rect: frame)
-        let frameData = try? NSKeyedArchiver.archivedData(
-            withRootObject: nsValue, requiringSecureCoding: true)
-        UserDefaults.standard.set(frameData, forKey: windowFrameKey)
-    }
+//    private func saveWindowFrame() {
+//        let nsValue = NSValue(rect: frame)
+//        let frameData = try? NSKeyedArchiver.archivedData(
+//            withRootObject: nsValue, requiringSecureCoding: true)
+//        UserDefaults.standard.set(frameData, forKey: windowFrameKey)
+//    }
 
     func adjustFrameForNewContentSize(_ contentSize: NSSize) {
         NSAnimationContext.runAnimationGroup(
@@ -236,7 +243,7 @@ extension NSToolbarItem.Identifier {
 
 extension SettingWindow: NSToolbarDelegate {
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        return [.general, .integration, .history, .filter]
+        return [.general, .integration, .filter, .history]
     }
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -312,11 +319,11 @@ extension SettingWindow: NSWindowDelegate {
     }
 
     // Save window position and size when window is moved or resized
-    func windowDidResize(_ notification: Notification) {
-        saveWindowFrame()
-    }
-
-    func windowDidMove(_ notification: Notification) {
-        saveWindowFrame()
-    }
+//    func windowDidResize(_ notification: Notification) {
+//        saveWindowFrame()
+//    }
+//
+//    func windowDidMove(_ notification: Notification) {
+//        saveWindowFrame()
+//    }
 }

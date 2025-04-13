@@ -11,574 +11,345 @@ import RxCocoa
 import RxSwift
 import SnapKit
 
-class PreferencesFilterViewController: NSViewController, SettingWindowProtocol {
-    final let frameSize: NSSize = .init(width: 600, height: 500)
+// MARK: - Constants
+
+private enum FilterViewConstants {
+    static let sectionTopOffset: CGFloat = 24
+    static let descriptionTopOffset: CGFloat = 6
+    static let descriptionSideInset: CGFloat = 20
+    static let tableTopOffset: CGFloat = 10
+    static let tableSideInset: CGFloat = 20
+    static let tableHeight: CGFloat = 180
+    static let buttonStackTopOffset: CGFloat = 8
+    static let buttonStackWidth: CGFloat = 45
+    static let buttonStackHeight: CGFloat = 22
+    static let bottomInset: CGFloat = 20
+    static let cornerRadius: CGFloat = 8
+    static let borderWidth: CGFloat = 1
+    static let iconColumnWidth: CGFloat = 24
+    static let kindColumnWidth: CGFloat = 100
+    static let kindColumnMinWidth: CGFloat = 80
+    static let nameColumnMinWidth: CGFloat = 150
+    static let cellTextSideInset: CGFloat = 4
+    static let iconSize: CGFloat = 16
+    static let headerHeight: CGFloat = 20  // 标题文本的大致高度
+    static let descriptionHeight: CGFloat = 20  // 描述文本的大致高度
+    static let sectionBottomPadding: CGFloat = 10  // 每个部分底部的额外内边距
+
+    // 计算FilterTableView的固定总高度
+    static var filterViewTotalHeight: CGFloat {
+        return sectionTopOffset + headerHeight + descriptionTopOffset + descriptionHeight
+            + tableTopOffset + tableHeight + buttonStackTopOffset + buttonStackHeight
+            + sectionBottomPadding
+    }
+}
+
+// MARK: - FilterTableView
+
+class FilterTableView: NSView {
+    enum FilterType {
+        case process
+        case media
+    }
+
+    // MARK: Properties
 
     private let disposeBag = DisposeBag()
+    private let type: FilterType
+    private var items = [String]()
+    weak var delegate: FilterTableViewDelegate?
 
-    // UI Components
-    private lazy var scrollView: NSScrollView = {
-        let scrollView = NSScrollView()
-        scrollView.hasVerticalScroller = true
-        scrollView.autohidesScrollers = true
-        scrollView.automaticallyAdjustsContentInsets = false
-        return scrollView
-    }()
+    // MARK: UI Components
 
-    private lazy var contentView: NSView = {
-        let view = NSView()
-        return view
-    }()
-
-    // Process Filter Section
-    private lazy var processHeaderLabel: NSTextField = {
-        let label = NSTextField(labelWithString: "Process Filter")
+    private lazy var headerLabel: NSTextField = {
+        let label = NSTextField(
+            labelWithString: type == .process ? "Process Filter" : "Media Filter")
         label.font = .systemFont(ofSize: 18, weight: .bold)
         return label
     }()
 
-    private lazy var processDescriptionLabel: NSTextField = {
+    private lazy var descriptionLabel: NSTextField = {
         let label = NSTextField(
-            labelWithString:
-            "Applications added to this list will be ignored when reporting processes.")
-        label.font = .systemFont(ofSize: 13)
-        label.textColor = .secondaryLabelColor
-        return label
-    }()
-
-    // 表格相关属性
-    private var processTableView: NSTableView!
-    private var mediaTableView: NSTableView!
-
-    private lazy var processTableContainer: NSScrollView = {
-        let scrollView = NSScrollView()
-        scrollView.hasVerticalScroller = true
-        scrollView.hasHorizontalScroller = false
-        scrollView.autohidesScrollers = true
-
-        return scrollView
-    }()
-
-    private lazy var processButtonStack: NSStackView = {
-        let stackView = NSStackView()
-        stackView.orientation = .horizontal
-        stackView.spacing = 0
-        stackView.distribution = .fillEqually
-        stackView.wantsLayer = true
-        stackView.layer?.masksToBounds = true
-        return stackView
-    }()
-
-    private lazy var addProcessButton: NSButton = {
-        let button = NSButton(
-            image: NSImage(systemSymbolName: "plus", accessibilityDescription: "Add")!,
-            target: self, action: #selector(addProcess))
-        button.bezelStyle = .texturedSquare
-        button.imagePosition = .imageOnly
-        button.imageScaling = .scaleProportionallyDown
-        button.setButtonType(.momentaryPushIn)
-        return button
-    }()
-
-    private lazy var removeProcessButton: NSButton = {
-        let button = NSButton(
-            image: NSImage(systemSymbolName: "minus", accessibilityDescription: "Remove")!,
-            target: self, action: #selector(removeSelectedProcesses))
-        button.bezelStyle = .texturedSquare
-        button.imagePosition = .imageOnly
-        button.imageScaling = .scaleProportionallyDown
-        button.setButtonType(.momentaryPushIn)
-        button.isEnabled = false
-        return button
-    }()
-
-    // Media Filter Section
-    private lazy var mediaHeaderLabel: NSTextField = {
-        let label = NSTextField(labelWithString: "Media Filter")
-        label.font = .systemFont(ofSize: 18, weight: .bold)
-        return label
-    }()
-
-    private lazy var mediaDescriptionLabel: NSTextField = {
-        let label = NSTextField(
-            labelWithString: "Applications added to this list will be ignored when reporting media."
+            labelWithString: type == .process
+                ? "Applications added to this list will be ignored when reporting processes."
+                : "Applications added to this list will be ignored when reporting media."
         )
         label.font = .systemFont(ofSize: 13)
         label.textColor = .secondaryLabelColor
         return label
     }()
 
-    private lazy var mediaTableContainer: NSScrollView = {
+    private lazy var tableContainer: NSScrollView = {
         let scrollView = NSScrollView()
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = false
         scrollView.autohidesScrollers = true
-
         return scrollView
     }()
 
-    private lazy var mediaButtonStack: NSStackView = {
+    private lazy var tableView: CustomTableView = {
+        let tableView = CustomTableView()
+        tableView.style = .sourceList
+        tableView.usesAlternatingRowBackgroundColors = true
+        tableView.rowHeight = 24
+        tableView.gridStyleMask = .solidHorizontalGridLineMask
+        tableView.backgroundColor = .controlBackgroundColor
+        tableView.gridColor = .separatorColor
+        tableView.intercellSpacing = NSSize(width: 3.0, height: 2.0)
+        tableView.menu = createContextMenu()
+        tableView.autoresizingMask = [.width]
+        tableView.target = self
+        tableView.action = #selector(tableViewClicked(_:))
+        tableView.wantsLayer = true
+        tableView.layer?.borderWidth = FilterViewConstants.borderWidth
+        tableView.layer?.borderColor = NSColor.separatorColor.cgColor
+        tableView.layer?.cornerRadius = FilterViewConstants.cornerRadius
+
+        // 设置键盘处理
+        tableView.keyActionHandler = self
+
+        // 为表格设置拖拽类型
+        tableView.registerForDraggedTypes([.fileURL])
+        tableView.setDraggingSourceOperationMask(.copy, forLocal: false)
+
+        return tableView
+    }()
+
+    private lazy var buttonStack: NSStackView = {
         let stackView = NSStackView()
         stackView.orientation = .horizontal
         stackView.spacing = 0
         stackView.distribution = .fillEqually
         stackView.wantsLayer = true
-
         stackView.layer?.masksToBounds = true
         return stackView
     }()
 
-    private lazy var addMediaButton: NSButton = {
+    private lazy var addButton: NSButton = {
         let button = NSButton(
             image: NSImage(systemSymbolName: "plus", accessibilityDescription: "Add")!,
-            target: self, action: #selector(addMedia))
+            target: self, action: #selector(addItem))
         button.bezelStyle = .texturedSquare
         button.imagePosition = .imageOnly
         button.imageScaling = .scaleProportionallyDown
         button.setButtonType(.momentaryPushIn)
+        button.contentTintColor = .controlAccentColor
         return button
     }()
 
-    private lazy var removeMediaButton: NSButton = {
+    private lazy var removeButton: NSButton = {
         let button = NSButton(
             image: NSImage(systemSymbolName: "minus", accessibilityDescription: "Remove")!,
-            target: self, action: #selector(removeSelectedMedia))
+            target: self, action: #selector(removeSelectedItems))
         button.bezelStyle = .texturedSquare
         button.imagePosition = .imageOnly
         button.imageScaling = .scaleProportionallyDown
         button.setButtonType(.momentaryPushIn)
         button.isEnabled = false
+        button.contentTintColor = .controlAccentColor
         return button
     }()
 
-    override func loadView() {
-        view = NSView()
+    // MARK: Initialization
 
-        // 在这里初始化表格，避免死循环
-        setupTableViews()
+    init(type: FilterType) {
+        self.type = type
+        super.init(frame: .zero)
         setupUI()
-        bindData()
-        setupDragAndDrop()
-    }
+        setupTableView()
 
-    private func setupTableViews() {
-        // 初始化进程表格
-        processTableView = CustomTableView()
-        processTableView.style = .sourceList
-        processTableView.usesAlternatingRowBackgroundColors = true
-        processTableView.rowHeight = 24
-        processTableView.gridStyleMask = .solidHorizontalGridLineMask
-        processTableView.backgroundColor = .controlBackgroundColor
-        processTableView.gridColor = .separatorColor
-        processTableView.intercellSpacing = NSSize(width: 3.0, height: 2.0)
-        processTableView.menu = createContextMenu(for: .process)
-        processTableView.autoresizingMask = [.width]
-        processTableView.target = self
-        processTableView.action = #selector(tableViewClicked(_:))
-        processTableView.wantsLayer = true
-        processTableView.layer?.borderWidth = 1
-        processTableView.layer?.borderColor = NSColor.separatorColor.cgColor
-        processTableView.layer?.cornerRadius = 8
-
-        // 设置键盘处理
-        (processTableView as? CustomTableView)?.keyActionHandler = self
-
-        let processIconColumn = NSTableColumn(
-            identifier: NSUserInterfaceItemIdentifier("ProcessIconColumn"))
-        processIconColumn.width = 24
-        processIconColumn.minWidth = 24
-        processIconColumn.maxWidth = 24
-        processIconColumn.isEditable = false
-
-        let processNameColumn = NSTableColumn(
-            identifier: NSUserInterfaceItemIdentifier("ProcessNameColumn"))
-        processNameColumn.title = "Item"
-        processNameColumn.minWidth = 150
-        processNameColumn.isEditable = false
-        processNameColumn.resizingMask = .autoresizingMask
-
-        let processKindColumn = NSTableColumn(
-            identifier: NSUserInterfaceItemIdentifier("ProcessKindColumn"))
-        processKindColumn.title = "Kind"
-        processKindColumn.width = 100
-        processKindColumn.minWidth = 80
-        processKindColumn.maxWidth = 100
-        processKindColumn.isEditable = false
-
-        processTableView.addTableColumn(processIconColumn)
-        processTableView.addTableColumn(processNameColumn)
-        processTableView.addTableColumn(processKindColumn)
-
-        // 设置列自动调整宽度
-        processTableView.sizeLastColumnToFit()
-        processTableView.columnAutoresizingStyle = .sequentialColumnAutoresizingStyle
-
-        processTableView.dataSource = self
-        processTableView.delegate = self
-        processTableView.allowsMultipleSelection = true
-        processTableView.headerView = nil
-
-        // 初始化媒体表格
-        mediaTableView = CustomTableView()
-        processTableView.style = .sourceList
-        mediaTableView.usesAlternatingRowBackgroundColors = true
-        mediaTableView.rowHeight = 24
-        mediaTableView.gridStyleMask = .solidHorizontalGridLineMask
-        mediaTableView.backgroundColor = .controlBackgroundColor
-        mediaTableView.gridColor = .separatorColor
-        mediaTableView.intercellSpacing = NSSize(width: 3.0, height: 2.0)
-        mediaTableView.menu = createContextMenu(for: .media)
-        mediaTableView.autoresizingMask = [.width]
-        mediaTableView.target = self
-        mediaTableView.action = #selector(tableViewClicked(_:))
-        // 设置键盘处理
-        (mediaTableView as? CustomTableView)?.keyActionHandler = self
-        mediaTableView.wantsLayer = true
-        mediaTableView.layer?.borderWidth = 1
-        mediaTableView.layer?.borderColor = NSColor.separatorColor.cgColor
-        mediaTableView.layer?.cornerRadius = 8
-
-        let mediaIconColumn = NSTableColumn(
-            identifier: NSUserInterfaceItemIdentifier("MediaIconColumn"))
-        mediaIconColumn.width = 24
-        mediaIconColumn.minWidth = 24
-        mediaIconColumn.maxWidth = 24
-        mediaIconColumn.isEditable = false
-
-        let mediaNameColumn = NSTableColumn(
-            identifier: NSUserInterfaceItemIdentifier("MediaNameColumn"))
-        mediaNameColumn.title = "Item"
-        mediaNameColumn.minWidth = 150
-        mediaNameColumn.isEditable = false
-        mediaNameColumn.resizingMask = .autoresizingMask
-
-        let mediaKindColumn = NSTableColumn(
-            identifier: NSUserInterfaceItemIdentifier("MediaKindColumn"))
-        mediaKindColumn.title = "Kind"
-        mediaKindColumn.width = 100
-        mediaKindColumn.minWidth = 80
-        mediaKindColumn.maxWidth = 100
-        mediaKindColumn.isEditable = false
-
-        mediaTableView.addTableColumn(mediaIconColumn)
-        mediaTableView.addTableColumn(mediaNameColumn)
-        mediaTableView.addTableColumn(mediaKindColumn)
-
-        // 设置列自动调整宽度
-        mediaTableView.sizeLastColumnToFit()
-        mediaTableView.columnAutoresizingStyle = .sequentialColumnAutoresizingStyle
-
-        mediaTableView.dataSource = self
-        mediaTableView.delegate = self
-        mediaTableView.allowsMultipleSelection = true
-        mediaTableView.headerView = nil
-
-        // 设置文档视图
-        processTableContainer.documentView = processTableView
-        mediaTableContainer.documentView = mediaTableView
-
-        // 确保表格适应容器宽度
-        processTableView.frame.size.width = processTableContainer.contentSize.width - 10
-        mediaTableView.frame.size.width = mediaTableContainer.contentSize.width - 10
-    }
-
-    private func setupDragAndDrop() {
-        // 为进程表格设置拖拽类型
-        processTableView.registerForDraggedTypes([.fileURL])
-        processTableView.setDraggingSourceOperationMask(.copy, forLocal: false)
-
-        // 为媒体表格设置拖拽类型
-        mediaTableView.registerForDraggedTypes([.fileURL])
-        mediaTableView.setDraggingSourceOperationMask(.copy, forLocal: false)
-    }
-
-    private func setupUI() {
-        view.addSubview(scrollView)
-        scrollView.documentView = contentView
-
-        // Process Filter Section
-        contentView.addSubview(processHeaderLabel)
-        contentView.addSubview(processDescriptionLabel)
-        contentView.addSubview(processTableContainer)
-        contentView.addSubview(processButtonStack)
-
-        processButtonStack.addArrangedSubview(addProcessButton)
-        processButtonStack.addArrangedSubview(removeProcessButton)
-
-        // Media Filter Section
-        contentView.addSubview(mediaHeaderLabel)
-        contentView.addSubview(mediaDescriptionLabel)
-        contentView.addSubview(mediaTableContainer)
-        contentView.addSubview(mediaButtonStack)
-
-        mediaButtonStack.addArrangedSubview(addMediaButton)
-        mediaButtonStack.addArrangedSubview(removeMediaButton)
-
-        scrollView.snp.makeConstraints { make in
-            make.edges.equalToSuperview()
-        }
-
-        contentView.snp.makeConstraints { make in
-            make.edges.equalToSuperview()
-        }
-
-        // Process Filter Section
-        processHeaderLabel.snp.makeConstraints { make in
-            make.top.equalToSuperview().offset(24)
-            make.left.equalToSuperview().offset(20)
-        }
-
-        processDescriptionLabel.snp.makeConstraints { make in
-            make.top.equalTo(processHeaderLabel.snp.bottom).offset(6)
-            make.left.equalToSuperview().offset(20)
-            make.right.equalToSuperview().offset(-20)
-        }
-
-        processTableContainer.snp.makeConstraints { make in
-            make.top.equalTo(processDescriptionLabel.snp.bottom).offset(10)
-            make.width.equalToSuperview().inset(20)
-            make.horizontalEdges.equalToSuperview().offset(20)
-            make.height.equalTo(180)
-        }
-
-        processButtonStack.snp.makeConstraints { make in
-            make.top.equalTo(processTableContainer.snp.bottom).offset(8)
-            make.left.equalToSuperview().offset(20)
-            make.width.equalTo(45)
-            make.height.equalTo(22)
-        }
-
-        // Media Filter Section
-        mediaHeaderLabel.snp.makeConstraints { make in
-            make.top.equalTo(processButtonStack.snp.bottom).offset(24)
-            make.left.equalToSuperview().offset(20)
-        }
-
-        mediaDescriptionLabel.snp.makeConstraints { make in
-            make.top.equalTo(mediaHeaderLabel.snp.bottom).offset(6)
-            make.left.equalToSuperview().offset(20)
-            make.right.equalToSuperview().offset(-20)
-        }
-
-        mediaTableContainer.snp.makeConstraints { make in
-            make.top.equalTo(mediaDescriptionLabel.snp.bottom).offset(10)
-            make.horizontalEdges.equalToSuperview().offset(20)
-            make.width.equalToSuperview().inset(20)
-            make.height.equalTo(180)
-        }
-
-        mediaButtonStack.snp.makeConstraints { make in
-            make.top.equalTo(mediaTableContainer.snp.bottom).offset(8)
-            make.left.equalToSuperview().offset(20)
-            make.width.equalTo(45)
-            make.height.equalTo(22)
-            make.bottom.equalToSuperview().inset(20)
-        }
-
-        addProcessButton.contentTintColor = .controlAccentColor
-        removeProcessButton.contentTintColor = .controlAccentColor
-        addMediaButton.contentTintColor = .controlAccentColor
-        removeMediaButton.contentTintColor = .controlAccentColor
-    }
-
-    private func bindData() {
-        PreferencesDataModel.filteredProcesses
-            .subscribe(onNext: { [weak self] _ in
-                self?.processTableView.reloadData()
-            })
-            .disposed(by: disposeBag)
-
-        PreferencesDataModel.filteredMediaProcesses
-            .subscribe(onNext: { [weak self] _ in
-                self?.mediaTableView.reloadData()
-            })
-            .disposed(by: disposeBag)
+        // 设置固定高度，防止自动扩展
+        self.translatesAutoresizingMaskIntoConstraints = false
 
         // 监听表格选择变化来启用/禁用删除按钮
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(tableViewSelectionDidChange(_:)),
             name: NSTableView.selectionDidChangeNotification,
-            object: nil)
-
-        // 初始状态下禁用删除按钮
-        removeProcessButton.isEnabled = false
-        removeMediaButton.isEnabled = false
+            object: tableView)
     }
 
-    @objc func tableViewSelectionDidChange(_ notification: Notification) {
-        guard let tableView = notification.object as? NSTableView else { return }
-
-        if tableView == processTableView {
-            removeProcessButton.isEnabled = !tableView.selectedRowIndexes.isEmpty
-        } else if tableView == mediaTableView {
-            removeMediaButton.isEnabled = !tableView.selectedRowIndexes.isEmpty
-        }
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
     }
 
     deinit {
         NotificationCenter.default.removeObserver(self)
     }
 
-    @objc private func addProcess() {
-        let panel = NSOpenPanel()
-        panel.allowsMultipleSelection = true
-        panel.canChooseDirectories = false
-        panel.canChooseFiles = true
-        panel.allowedContentTypes = [.application]
-        panel.directoryURL = URL(fileURLWithPath: "/Applications")
-        panel.message = "Choose applications to filter from process reporting"
+    // MARK: Setup
 
-        panel.beginSheetModal(for: view.window!) { response in
-            guard response == .OK else { return }
+    private func setupUI() {
+        addSubview(headerLabel)
+        addSubview(descriptionLabel)
+        addSubview(tableContainer)
+        addSubview(buttonStack)
 
-            var bundleIDs: [String] = []
-            for url in panel.urls {
-                if let bundle = Bundle(url: url), let bundleID = bundle.bundleIdentifier {
-                    bundleIDs.append(bundleID)
-                }
-            }
+        buttonStack.addArrangedSubview(addButton)
+        buttonStack.addArrangedSubview(removeButton)
 
-            var currentProcesses = PreferencesDataModel.filteredProcesses.value
-            for bundleID in bundleIDs {
-                if !currentProcesses.contains(bundleID) {
-                    currentProcesses.append(bundleID)
-                }
-            }
-            PreferencesDataModel.filteredProcesses.accept(currentProcesses)
+        headerLabel.snp.makeConstraints { make in
+            make.top.equalToSuperview().offset(FilterViewConstants.sectionTopOffset)
+            make.left.equalToSuperview().offset(FilterViewConstants.descriptionSideInset)
+            make.height.equalTo(FilterViewConstants.headerHeight)
+            
+        }
+
+        descriptionLabel.snp.makeConstraints { make in
+            make.top.equalTo(headerLabel.snp.bottom).offset(
+                FilterViewConstants.descriptionTopOffset)
+            make.left.equalToSuperview().offset(FilterViewConstants.descriptionSideInset)
+            make.right.equalToSuperview().offset(-FilterViewConstants.descriptionSideInset)
+            make.height.equalTo(FilterViewConstants.descriptionHeight)
+        }
+
+        tableContainer.snp.makeConstraints { make in
+            make.top.equalTo(descriptionLabel.snp.bottom).offset(FilterViewConstants.tableTopOffset)
+            make.horizontalEdges.equalToSuperview().inset(FilterViewConstants.tableSideInset)
+            make.height.equalTo(FilterViewConstants.tableHeight)
+        }
+
+        buttonStack.snp.makeConstraints { make in
+            make.top.equalTo(tableContainer.snp.bottom).offset(
+                FilterViewConstants.buttonStackTopOffset)
+            make.left.equalToSuperview().offset(FilterViewConstants.tableSideInset)
+            make.width.equalTo(FilterViewConstants.buttonStackWidth)
+            make.height.equalTo(FilterViewConstants.buttonStackHeight)
+            make.bottom.equalToSuperview().offset(FilterViewConstants.buttonStackTopOffset)
         }
     }
 
-    @objc private func addMedia() {
-        let panel = NSOpenPanel()
-        panel.allowsMultipleSelection = true
-        panel.canChooseDirectories = false
-        panel.canChooseFiles = true
-        panel.allowedContentTypes = [.application]
-        panel.directoryURL = URL(fileURLWithPath: "/Applications")
-        panel.message = "Choose applications to filter from media reporting"
+    private func setupTableView() {
+        let iconColumnId = type == .process ? "ProcessIconColumn" : "MediaIconColumn"
+        let nameColumnId = type == .process ? "ProcessNameColumn" : "MediaNameColumn"
+        let kindColumnId = type == .process ? "ProcessKindColumn" : "MediaKindColumn"
 
-        panel.beginSheetModal(for: view.window!) { response in
-            guard response == .OK else { return }
+        let iconColumn = NSTableColumn(
+            identifier: NSUserInterfaceItemIdentifier(iconColumnId))
+        iconColumn.width = FilterViewConstants.iconColumnWidth
+        iconColumn.minWidth = FilterViewConstants.iconColumnWidth
+        iconColumn.maxWidth = FilterViewConstants.iconColumnWidth
+        iconColumn.isEditable = false
 
-            var bundleIDs: [String] = []
-            for url in panel.urls {
-                if let bundle = Bundle(url: url), let bundleID = bundle.bundleIdentifier {
-                    bundleIDs.append(bundleID)
-                }
-            }
+        let nameColumn = NSTableColumn(
+            identifier: NSUserInterfaceItemIdentifier(nameColumnId))
+        nameColumn.title = "Item"
+        nameColumn.minWidth = FilterViewConstants.nameColumnMinWidth
+        nameColumn.isEditable = false
+        nameColumn.resizingMask = .autoresizingMask
 
-            var currentMedia = PreferencesDataModel.filteredMediaProcesses.value
-            for bundleID in bundleIDs {
-                if !currentMedia.contains(bundleID) {
-                    currentMedia.append(bundleID)
-                }
-            }
-            PreferencesDataModel.filteredMediaProcesses.accept(currentMedia)
-        }
+        let kindColumn = NSTableColumn(
+            identifier: NSUserInterfaceItemIdentifier(kindColumnId))
+        kindColumn.title = "Kind"
+        kindColumn.width = FilterViewConstants.kindColumnWidth
+        kindColumn.minWidth = FilterViewConstants.kindColumnMinWidth
+        kindColumn.maxWidth = FilterViewConstants.kindColumnWidth
+        kindColumn.isEditable = false
+
+        tableView.addTableColumn(iconColumn)
+        tableView.addTableColumn(nameColumn)
+        tableView.addTableColumn(kindColumn)
+
+        // 设置列自动调整宽度
+        tableView.sizeLastColumnToFit()
+        tableView.columnAutoresizingStyle = .sequentialColumnAutoresizingStyle
+
+        tableView.dataSource = self
+        tableView.delegate = self
+        tableView.allowsMultipleSelection = true
+        tableView.headerView = nil
+
+        tableContainer.documentView = tableView
     }
 
-    @objc private func removeSelectedProcesses() {
-        let selectedRows = processTableView.selectedRowIndexes
-        var currentProcesses = PreferencesDataModel.filteredProcesses.value
+    // MARK: Public Methods
 
-        let sortedIndexes = selectedRows.sorted(by: >)
-        for index in sortedIndexes {
-            if index < currentProcesses.count {
-                currentProcesses.remove(at: index)
-            }
-        }
-
-        PreferencesDataModel.filteredProcesses.accept(currentProcesses)
+    func updateItems(_ items: [String]) {
+        self.items = items
+        tableView.reloadData()
     }
 
-    @objc private func removeSelectedMedia() {
-        let selectedRows = mediaTableView.selectedRowIndexes
-        var currentMedia = PreferencesDataModel.filteredMediaProcesses.value
-
-        let sortedIndexes = selectedRows.sorted(by: >)
-        for index in sortedIndexes {
-            if index < currentMedia.count {
-                currentMedia.remove(at: index)
-            }
-        }
-
-        PreferencesDataModel.filteredMediaProcesses.accept(currentMedia)
+    func getSelectedRows() -> IndexSet {
+        return tableView.selectedRowIndexes
     }
 
-    override func viewWillAppear() {
-        super.viewWillAppear()
+    // MARK: - Layout
 
+    override func layout() {
+        super.layout()
         adjustTableColumnsWidth()
-    }
-
-    override func viewDidLayout() {
-        super.viewDidLayout()
-
-        adjustTableColumnsWidth()
-
-        // 确保表格宽度总是与容器宽度匹配
-        processTableView.frame.size.width = processTableContainer.contentSize.width
-        mediaTableView.frame.size.width = mediaTableContainer.contentSize.width
+        tableView.frame.size.width = tableContainer.contentSize.width
     }
 
     private func adjustTableColumnsWidth() {
-        // 确保表格列宽度填充整个容器
-        if let nameColumn = processTableView.tableColumn(
-            withIdentifier: NSUserInterfaceItemIdentifier("ProcessNameColumn"))
-        {
-            let totalWidth = processTableContainer.contentSize.width
-            let iconWidth =
-                processTableView.tableColumn(
-                    withIdentifier: NSUserInterfaceItemIdentifier("ProcessIconColumn"))?.width ?? 24
-            let kindWidth =
-                processTableView.tableColumn(
-                    withIdentifier: NSUserInterfaceItemIdentifier("ProcessKindColumn"))?.width
-                ?? 100
+        let nameColumnId = type == .process ? "ProcessNameColumn" : "MediaNameColumn"
+        let iconColumnId = type == .process ? "ProcessIconColumn" : "MediaIconColumn"
+        let kindColumnId = type == .process ? "ProcessKindColumn" : "MediaKindColumn"
 
-            // 减去其他列的宽度和间距
-            nameColumn.width = totalWidth - iconWidth - kindWidth - 10
-        }
-
-        if let nameColumn = mediaTableView.tableColumn(
-            withIdentifier: NSUserInterfaceItemIdentifier("MediaNameColumn"))
+        if let nameColumn = tableView.tableColumn(
+            withIdentifier: NSUserInterfaceItemIdentifier(nameColumnId))
         {
-            let totalWidth = mediaTableContainer.contentSize.width
+            let totalWidth = tableContainer.contentSize.width
             let iconWidth =
-                mediaTableView.tableColumn(
-                    withIdentifier: NSUserInterfaceItemIdentifier("MediaIconColumn"))?.width ?? 24
+                tableView.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier(iconColumnId))?
+                .width ?? FilterViewConstants.iconColumnWidth
             let kindWidth =
-                mediaTableView.tableColumn(
-                    withIdentifier: NSUserInterfaceItemIdentifier("MediaKindColumn"))?.width ?? 100
+                tableView.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier(kindColumnId))?
+                .width ?? FilterViewConstants.kindColumnWidth
 
             // 减去其他列的宽度和间距
             nameColumn.width = totalWidth - iconWidth - kindWidth - 10
         }
     }
 
-    // MARK: - Context Menu
+    // MARK: Actions
 
-    private enum TableType {
-        case process
-        case media
+    @objc private func addItem() {
+        delegate?.addItem(for: type)
     }
 
-    private func createContextMenu(for tableType: TableType) -> NSMenu {
+    @objc private func removeSelectedItems() {
+        delegate?.removeItems(at: tableView.selectedRowIndexes, for: type)
+    }
+
+    @objc internal func tableViewSelectionDidChange(_ notification: Notification) {
+        guard let tableView = notification.object as? NSTableView, tableView == self.tableView
+        else { return }
+        removeButton.isEnabled = !tableView.selectedRowIndexes.isEmpty
+    }
+
+    @objc private func tableViewClicked(_ sender: NSTableView) {
+        // 获取当前鼠标位置
+        let mouseLocation = NSEvent.mouseLocation
+        guard let window = window else { return }
+        let windowPoint = window.convertPoint(fromScreen: mouseLocation)
+        let viewPoint = convert(windowPoint, from: nil)
+        let tablePoint = sender.convert(viewPoint, from: self)
+
+        // 检查点击的是否是表格行
+        let clickedRow = sender.row(at: tablePoint)
+
+        // 如果点击的不是表格行，取消所有选择
+        if clickedRow == -1 {
+            sender.deselectAll(nil)
+            removeButton.isEnabled = false
+        }
+    }
+
+    // MARK: Context Menu
+
+    private func createContextMenu() -> NSMenu {
         let menu = NSMenu()
-
-        // Set the menu delegate to handle the right-clicked row
         menu.delegate = self
 
         let removeItem = NSMenuItem(
             title: "Remove", action: #selector(contextMenuRemove(_:)), keyEquivalent: "")
         removeItem.target = self
-        removeItem.tag = tableType == .process ? 0 : 1
 
         let openInFinderItem = NSMenuItem(
             title: "Open in Finder", action: #selector(contextMenuOpenInFinder(_:)),
             keyEquivalent: "")
         openInFinderItem.target = self
-        openInFinderItem.tag = tableType == .process ? 0 : 1
 
         menu.addItem(removeItem)
         menu.addItem(openInFinderItem)
@@ -587,143 +358,54 @@ class PreferencesFilterViewController: NSViewController, SettingWindowProtocol {
     }
 
     @objc private func contextMenuRemove(_ sender: NSMenuItem) {
-        let tableType = sender.tag
-
-        if tableType == 0 {
-            // Process table
-            if !processTableView.selectedRowIndexes.isEmpty {
-                // 如果有选中的行，优先删除已选择的项目
-                removeSelectedProcesses()
-            } else {
-                // 如果没有选中的行，删除右键点击的项目
-                guard let clickInfo = sender.representedObject as? [String: Any],
-                      let row = clickInfo["row"] as? Int
-                else {
-                    return
-                }
-
-                var currentProcesses = PreferencesDataModel.filteredProcesses.value
-                if row < currentProcesses.count {
-                    currentProcesses.remove(at: row)
-                    PreferencesDataModel.filteredProcesses.accept(currentProcesses)
-                }
-            }
+        if !tableView.selectedRowIndexes.isEmpty {
+            // 如果有选中的行，优先删除已选择的项目
+            removeSelectedItems()
         } else {
-            // Media table
-            if !mediaTableView.selectedRowIndexes.isEmpty {
-                // 如果有选中的行，优先删除已选择的项目
-                removeSelectedMedia()
-            } else {
-                // 如果没有选中的行，删除右键点击的项目
-                guard let clickInfo = sender.representedObject as? [String: Any],
-                      let row = clickInfo["row"] as? Int
-                else {
-                    return
-                }
-
-                var currentMedia = PreferencesDataModel.filteredMediaProcesses.value
-                if row < currentMedia.count {
-                    currentMedia.remove(at: row)
-                    PreferencesDataModel.filteredMediaProcesses.accept(currentMedia)
-                }
+            // 如果没有选中的行，删除右键点击的项目
+            guard let clickInfo = sender.representedObject as? [String: Any],
+                let row = clickInfo["row"] as? Int
+            else {
+                return
             }
+
+            delegate?.removeItems(at: IndexSet(integer: row), for: type)
         }
     }
 
     @objc private func contextMenuOpenInFinder(_ sender: NSMenuItem) {
-        // Use the clicked row stored in the menu item's representedObject
         guard let clickInfo = sender.representedObject as? [String: Any],
-              let row = clickInfo["row"] as? Int,
-              let tableType = clickInfo["tableType"] as? Int
+            let row = clickInfo["row"] as? Int,
+            row < items.count
         else {
             return
         }
 
-        var bundleID: String?
-
-        if tableType == 0 {
-            // Process table
-            let processes = PreferencesDataModel.filteredProcesses.value
-            if row < processes.count {
-                bundleID = processes[row]
-            }
-        } else {
-            // Media table
-            let media = PreferencesDataModel.filteredMediaProcesses.value
-            if row < media.count {
-                bundleID = media[row]
-            }
-        }
-
-        guard let bundleID = bundleID,
-              let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID)
+        let bundleID = items[row]
+        guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID)
         else {
             return
         }
 
         NSWorkspace.shared.selectFile(appURL.path, inFileViewerRootedAtPath: "")
     }
-
-    // MARK: - Table Click Handling
-
-    @objc private func tableViewClicked(_ sender: NSTableView) {
-        // 获取当前鼠标位置
-        let mouseLocation = NSEvent.mouseLocation
-        guard let window = view.window else { return }
-        let windowPoint = window.convertPoint(fromScreen: mouseLocation)
-        let viewPoint = view.convert(windowPoint, from: nil)
-        let tablePoint = sender.convert(viewPoint, from: view)
-
-        // 检查点击的是否是表格行
-        let clickedRow = sender.row(at: tablePoint)
-
-        // 如果点击的不是表格行，取消所有选择
-        if clickedRow == -1 {
-            sender.deselectAll(nil)
-
-            // 更新删除按钮状态
-            if sender == processTableView {
-                removeProcessButton.isEnabled = false
-            } else if sender == mediaTableView {
-                removeMediaButton.isEnabled = false
-            }
-        }
-    }
 }
 
-// TableView DataSource & Delegate
-extension PreferencesFilterViewController: NSTableViewDataSource, NSTableViewDelegate {
+// MARK: - NSTableViewDataSource & NSTableViewDelegate
+
+extension FilterTableView: NSTableViewDataSource, NSTableViewDelegate {
     func numberOfRows(in tableView: NSTableView) -> Int {
-        if tableView == processTableView {
-            return PreferencesDataModel.filteredProcesses.value.count
-        } else if tableView == mediaTableView {
-            return PreferencesDataModel.filteredMediaProcesses.value.count
-        }
-        return 0
+        return items.count
     }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int)
         -> NSView?
     {
-        guard let tableColumn = tableColumn else { return nil }
+        guard let tableColumn = tableColumn, row < items.count else { return nil }
 
-        var appBundleID: String?
+        let bundleID = items[row]
         var appName: String?
         var appIcon: NSImage?
-
-        if tableView == processTableView {
-            let processes = PreferencesDataModel.filteredProcesses.value
-            if row < processes.count {
-                appBundleID = processes[row]
-            }
-        } else if tableView == mediaTableView {
-            let media = PreferencesDataModel.filteredMediaProcesses.value
-            if row < media.count {
-                appBundleID = media[row]
-            }
-        }
-
-        guard let bundleID = appBundleID else { return nil }
 
         // 获取应用名称和图标
         if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
@@ -749,7 +431,7 @@ extension PreferencesFilterViewController: NSTableViewDataSource, NSTableViewDel
 
             imageView.snp.makeConstraints { make in
                 make.centerX.centerY.equalToSuperview()
-                make.size.equalTo(16)
+                make.size.equalTo(FilterViewConstants.iconSize)
             }
 
         case "ProcessNameColumn", "MediaNameColumn":
@@ -764,8 +446,8 @@ extension PreferencesFilterViewController: NSTableViewDataSource, NSTableViewDel
 
             textField.snp.makeConstraints { make in
                 make.centerY.equalToSuperview()
-                make.left.equalToSuperview().offset(4)
-                make.right.equalToSuperview().offset(-4)
+                make.left.equalToSuperview().offset(FilterViewConstants.cellTextSideInset)
+                make.right.equalToSuperview().offset(-FilterViewConstants.cellTextSideInset)
             }
 
         case "ProcessKindColumn", "MediaKindColumn":
@@ -781,8 +463,8 @@ extension PreferencesFilterViewController: NSTableViewDataSource, NSTableViewDel
 
             textField.snp.makeConstraints { make in
                 make.centerY.equalToSuperview()
-                make.left.equalToSuperview().offset(4)
-                make.right.equalToSuperview().offset(-4)
+                make.left.equalToSuperview().offset(FilterViewConstants.cellTextSideInset)
+                make.right.equalToSuperview().offset(-FilterViewConstants.cellTextSideInset)
             }
 
         default:
@@ -824,24 +506,7 @@ extension PreferencesFilterViewController: NSTableViewDataSource, NSTableViewDel
             return false
         }
 
-        if tableView == processTableView {
-            var currentProcesses = PreferencesDataModel.filteredProcesses.value
-            for bundleID in bundleIDs {
-                if !currentProcesses.contains(bundleID) {
-                    currentProcesses.append(bundleID)
-                }
-            }
-            PreferencesDataModel.filteredProcesses.accept(currentProcesses)
-        } else if tableView == mediaTableView {
-            var currentMedia = PreferencesDataModel.filteredMediaProcesses.value
-            for bundleID in bundleIDs {
-                if !currentMedia.contains(bundleID) {
-                    currentMedia.append(bundleID)
-                }
-            }
-            PreferencesDataModel.filteredMediaProcesses.accept(currentMedia)
-        }
-
+        delegate?.addItems(bundleIDs, for: type)
         return true
     }
 
@@ -857,47 +522,225 @@ extension PreferencesFilterViewController: NSTableViewDataSource, NSTableViewDel
 
 // MARK: - NSMenuDelegate
 
-extension PreferencesFilterViewController: NSMenuDelegate {
+extension FilterTableView: NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) {
         // Get the location of the mouse click
         let mouseLocation = NSEvent.mouseLocation
 
         // Convert to window coordinates
-        guard let window = view.window else { return }
+        guard let window = window else { return }
         let windowPoint = window.convertPoint(fromScreen: mouseLocation)
 
         // Convert to view coordinates
-        let viewPoint = view.convert(windowPoint, from: nil)
+        let viewPoint = convert(windowPoint, from: nil)
 
-        var tableView: NSTableView?
-        var tableType: Int = -1
-
-        // Determine which table view was clicked
-        if processTableContainer.frame.contains(viewPoint) {
-            tableView = processTableView
-            tableType = 0
-        } else if mediaTableContainer.frame.contains(viewPoint) {
-            tableView = mediaTableView
-            tableType = 1
+        guard tableContainer.frame.contains(viewPoint) else {
+            // Disable the menu items if click is outside the table container
+            for item in menu.items {
+                item.isEnabled = false
+            }
+            return
         }
 
-        guard let tableView = tableView else { return }
-
         // Convert to table view coordinates
-        let tablePoint = tableView.convert(viewPoint, from: view)
+        let tablePoint = tableView.convert(viewPoint, from: self)
 
         // Get the row that was clicked
         let row = tableView.row(at: tablePoint)
         if row >= 0 {
-            // Store the row and table type in each menu item
+            // Store the row in each menu item
             for item in menu.items {
-                item.representedObject = ["row": row, "tableType": tableType]
+                item.representedObject = ["row": row]
             }
         } else {
             // Disable the menu items if no valid row was clicked
             for item in menu.items {
                 item.isEnabled = false
             }
+        }
+    }
+}
+
+// MARK: - CustomTableViewKeyHandler
+
+extension FilterTableView: CustomTableViewKeyHandler {
+    func handleDeleteKeyPress(in tableView: NSTableView) {
+        removeSelectedItems()
+    }
+}
+
+// MARK: - FilterTableViewDelegate
+
+protocol FilterTableViewDelegate: AnyObject {
+    func addItem(for type: FilterTableView.FilterType)
+    func addItems(_ bundleIDs: [String], for type: FilterTableView.FilterType)
+    func removeItems(at indexes: IndexSet, for type: FilterTableView.FilterType)
+}
+
+// MARK: - PreferencesFilterViewController
+
+class PreferencesFilterViewController: NSViewController, SettingWindowProtocol {
+    final let frameSize: NSSize = .init(width: 600, height: 500)
+
+    private let disposeBag = DisposeBag()
+
+    // UI Components
+    private lazy var scrollView: NSScrollView = {
+        let scrollView = NSScrollView()
+        scrollView.hasVerticalScroller = true
+        scrollView.autohidesScrollers = true
+        scrollView.automaticallyAdjustsContentInsets = false
+        return scrollView
+    }()
+
+    private lazy var contentView: NSView = {
+        let view = NSView()
+        return view
+    }()
+
+    // Filter Views
+    private lazy var processFilterView = FilterTableView(type: .process)
+    private lazy var mediaFilterView = FilterTableView(type: .media)
+
+    override func loadView() {
+        view = NSView()
+        setupUI()
+        bindData()
+    }
+
+    private func setupUI() {
+        view.addSubview(scrollView)
+        scrollView.documentView = contentView
+
+        // Add filter views
+        contentView.addSubview(processFilterView)
+        contentView.addSubview(mediaFilterView)
+
+        // Set delegates
+        processFilterView.delegate = self
+        mediaFilterView.delegate = self
+
+        // Set constraints
+        scrollView.snp.makeConstraints { make in
+            make.edges.equalToSuperview()
+        }
+
+        contentView.snp.makeConstraints { make in
+            make.edges.equalToSuperview()
+            make.width.equalTo(scrollView.snp.width)
+        }
+
+        processFilterView.snp.makeConstraints { make in
+            make.top.equalToSuperview()
+            make.horizontalEdges.equalToSuperview()
+            make.height.equalTo(FilterViewConstants.filterViewTotalHeight)
+        }
+
+        mediaFilterView.snp.makeConstraints { make in
+            make.top.equalTo(processFilterView.snp.bottom)
+            make.horizontalEdges.equalToSuperview()
+            make.height.equalTo(FilterViewConstants.filterViewTotalHeight)
+            make.bottom.equalToSuperview()
+        }
+    }
+
+    private func bindData() {
+        PreferencesDataModel.filteredProcesses
+            .subscribe(onNext: { [weak self] processes in
+                self?.processFilterView.updateItems(processes)
+            })
+            .disposed(by: disposeBag)
+
+        PreferencesDataModel.filteredMediaProcesses
+            .subscribe(onNext: { [weak self] media in
+                self?.mediaFilterView.updateItems(media)
+            })
+            .disposed(by: disposeBag)
+    }
+
+    // MARK: - Layout Updates
+
+    override func viewWillAppear() {
+        super.viewWillAppear()
+        processFilterView.layout()
+        mediaFilterView.layout()
+    }
+
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        processFilterView.layout()
+        mediaFilterView.layout()
+    }
+}
+
+// MARK: - FilterTableViewDelegate Implementation
+
+extension PreferencesFilterViewController: FilterTableViewDelegate {
+    func addItem(for type: FilterTableView.FilterType) {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.allowedContentTypes = [.application]
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        panel.message =
+            type == .process
+            ? "Choose applications to filter from process reporting"
+            : "Choose applications to filter from media reporting"
+
+        panel.beginSheetModal(for: view.window!) { [weak self] response in
+            guard let self = self, response == .OK else { return }
+
+            var bundleIDs: [String] = []
+            for url in panel.urls {
+                if let bundle = Bundle(url: url), let bundleID = bundle.bundleIdentifier {
+                    bundleIDs.append(bundleID)
+                }
+            }
+
+            self.addItems(bundleIDs, for: type)
+        }
+    }
+
+    func addItems(_ bundleIDs: [String], for type: FilterTableView.FilterType) {
+        if type == .process {
+            var currentProcesses = PreferencesDataModel.filteredProcesses.value
+            for bundleID in bundleIDs {
+                if !currentProcesses.contains(bundleID) {
+                    currentProcesses.append(bundleID)
+                }
+            }
+            PreferencesDataModel.filteredProcesses.accept(currentProcesses)
+        } else {
+            var currentMedia = PreferencesDataModel.filteredMediaProcesses.value
+            for bundleID in bundleIDs {
+                if !currentMedia.contains(bundleID) {
+                    currentMedia.append(bundleID)
+                }
+            }
+            PreferencesDataModel.filteredMediaProcesses.accept(currentMedia)
+        }
+    }
+
+    func removeItems(at indexes: IndexSet, for type: FilterTableView.FilterType) {
+        if type == .process {
+            var currentProcesses = PreferencesDataModel.filteredProcesses.value
+            let sortedIndexes = indexes.sorted(by: >)
+            for index in sortedIndexes {
+                if index < currentProcesses.count {
+                    currentProcesses.remove(at: index)
+                }
+            }
+            PreferencesDataModel.filteredProcesses.accept(currentProcesses)
+        } else {
+            var currentMedia = PreferencesDataModel.filteredMediaProcesses.value
+            let sortedIndexes = indexes.sorted(by: >)
+            for index in sortedIndexes {
+                if index < currentMedia.count {
+                    currentMedia.remove(at: index)
+                }
+            }
+            PreferencesDataModel.filteredMediaProcesses.accept(currentMedia)
         }
     }
 }
@@ -944,16 +787,4 @@ private class CustomTableView: NSTableView {
 // 自定义表格视图键盘处理协议
 protocol CustomTableViewKeyHandler: AnyObject {
     func handleDeleteKeyPress(in tableView: NSTableView)
-}
-
-// MARK: - CustomTableViewKeyHandler
-
-extension PreferencesFilterViewController: CustomTableViewKeyHandler {
-    func handleDeleteKeyPress(in tableView: NSTableView) {
-        if tableView == processTableView {
-            removeSelectedProcesses()
-        } else if tableView == mediaTableView {
-            removeSelectedMedia()
-        }
-    }
 }

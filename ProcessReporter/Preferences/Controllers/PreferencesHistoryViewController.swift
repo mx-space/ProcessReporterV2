@@ -163,9 +163,9 @@ class PreferencesHistoryViewController: NSViewController, SettingWindowProtocol 
 
         scrollView.snp.makeConstraints { make in
             make.top.equalToSuperview().offset(46)
-            make.left.equalToSuperview().offset(8)
-            make.right.equalToSuperview().offset(-8)
-            make.bottom.equalToSuperview().offset(-8)
+            make.left.equalToSuperview()
+            make.right.equalToSuperview()
+            make.bottom.equalToSuperview()
         }
     }
 
