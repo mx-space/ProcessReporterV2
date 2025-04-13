@@ -1,5 +1,5 @@
 import AppKit
-import Frostflake
+
 import SwiftData
 
 func main() {
@@ -11,8 +11,6 @@ func main() {
         Database.shared.initialize()
         _ = Reporter()
     }
-
-    Frostflake.setup(sharedGenerator: .init(generatorIdentifier: 2025))
 
     setupMenu()
     _ = NSApplicationMain(CommandLine.argc, CommandLine.unsafeArgv)

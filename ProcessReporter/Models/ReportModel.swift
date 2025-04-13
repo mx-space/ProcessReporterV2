@@ -6,13 +6,12 @@
 //
 import Cocoa
 import Foundation
-import Frostflake
 import SwiftData
 
 @Model
 class ReportModel {
     @Attribute(.unique)
-    var id: UInt64
+    var id: UUID
 
     var processName: String
     var timeStamp: Date
@@ -63,7 +62,7 @@ class ReportModel {
         integrations: [String],
         mediaInfo: MediaInfo?
     ) {
-        self.id = Frostflake.generate().rawValue
+        self.id = UUID()
         self.processName = processName
         self.timeStamp = .now
         self.integrationsRaw =

@@ -1,5 +1,5 @@
 {
-  "originHash" : "da5b09e3daf5b3947566ac047057fda4bdcb9ab4c5b248b7e226d68a81f57446",
+  "originHash" : "082a3a82d3e72c910863cdafe0ca885b940a20fe2b7051d0abe54419478aa7a2",
   "pins" : [
     {
       "identity" : "alamofire",
@@ -8,15 +8,6 @@
       "state" : {
         "revision" : "513364f870f6bfc468f9d2ff0a95caccc10044c5",
         "version" : "5.10.2"
-      }
-    },
-    {
-      "identity" : "package-frostflake",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/ordo-one/package-frostflake",
-      "state" : {
-        "revision" : "00a9e6444ce2ae013521b8faab635a36dbb214c7",
-        "version" : "6.0.0"
       }
     },
     {
@@ -35,24 +26,6 @@
       "state" : {
         "revision" : "2842e6e84e82eb9a8dac0100ca90d9444b0307f4",
         "version" : "5.7.1"
-      }
-    },
-    {
-      "identity" : "swift-argument-parser",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-argument-parser",
-      "state" : {
-        "revision" : "41982a3656a71c768319979febd796c6fd111d5c",
-        "version" : "1.5.0"
-      }
-    },
-    {
-      "identity" : "swift-system",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-system",
-      "state" : {
-        "revision" : "a34201439c74b53f0fd71ef11741af7e7caf01e1",
-        "version" : "1.4.2"
       }
     }
   ],
