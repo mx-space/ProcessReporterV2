@@ -22,6 +22,7 @@ struct ApplicationTableView: View {
     @Binding var appItems: [AppItem]
     @State private var selectedProcessItems = Set<UUID>()
     @State private var isTargeted: Bool = false
+    @State private var showingAppPicker = false
 
     var title: String
     var description: String
@@ -101,6 +102,44 @@ struct ApplicationTableView: View {
                     }
                 )
             #endif
+
+            // Button group below the table
+            HStack {
+                Spacer()
+                HStack {
+                    Button(action: {
+                        showingAppPicker = true
+                    }) {
+                        Image(systemName: "plus").bold()
+                    }
+                    .buttonStyle(.plain)
+                    .controlSize(.small)
+
+                    Rectangle().frame(width: 1, height: 16)
+                        .foregroundColor(Color(NSColor.separatorColor))
+                        .padding(.horizontal, 2)
+
+                    Button(action: {
+                        removeSelectedApps()
+                    }) {
+                        Image(systemName: "minus").bold()
+                    }
+                    .buttonStyle(.plain)
+                    .controlSize(.small)
+                    .disabled(selectedProcessItems.isEmpty)
+                }
+                .padding(4)
+            }
+            // App Picker sheet
+            .sheet(isPresented: $showingAppPicker) {
+                AppPickerView { appId, url in
+                    if let appId = appId, let url = url {
+                        addApp(appId: appId, url: url)
+                    }
+                    showingAppPicker = false
+                }
+                .frame(width: 600, height: 400)
+            }
         }
         .padding()
     }
@@ -193,9 +232,11 @@ struct PreferencesFilterView: View {
                 ApplicationTableView(
                     appItems: $appItems,
                     title: "Filter Applications",
-                    description: "Add applications that should be filtered from reporting. Drag applications from Finder to add them."
+                    description:
+                    "Add applications that should be filtered from reporting. Drag applications from Finder to add them."
                 ) { items in
-                    PreferencesDataModel.filteredProcesses.accept(items.map { $0.applicationIdentifier })
+                    PreferencesDataModel.filteredProcesses.accept(
+                        items.map { $0.applicationIdentifier })
                 }
             }
 
@@ -203,9 +244,11 @@ struct PreferencesFilterView: View {
                 ApplicationTableView(
                     appItems: $mediaItems,
                     title: "Filter Media Processes",
-                    description: "Reports of the following media applications are ignored. Drag applications from Finder to add them."
+                    description:
+                    "Reports of the following media applications are ignored. Drag applications from Finder to add them."
                 ) { items in
-                    PreferencesDataModel.filteredMediaProcesses.accept(items.map { $0.applicationIdentifier })
+                    PreferencesDataModel.filteredMediaProcesses.accept(
+                        items.map { $0.applicationIdentifier })
                 }
             }
         }
