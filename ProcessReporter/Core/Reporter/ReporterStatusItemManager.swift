@@ -33,6 +33,10 @@ class ReporterStatusItemManager: NSObject {
     private var enableMediaReportButton: NSMenuItem!
     private var enableProcessReportButton: NSMenuItem!
 
+    #if DEBUG
+        private var debugItem: NSMenuItem!
+    #endif
+
     override init() {
         super.init()
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -92,7 +96,8 @@ class ReporterStatusItemManager: NSObject {
         menu.addItem(enabledItem)
         menu.addItem(
             NSMenuItem(
-                title: "Settings", action: #selector(showSettings), keyEquivalent: ",", target: self))
+                title: "Settings", action: #selector(showSettings), keyEquivalent: ",", target: self
+            ))
 
         menu.addItem(NSMenuItem.separator())
 
@@ -108,7 +113,7 @@ class ReporterStatusItemManager: NSObject {
         menu.addItem(NSMenuItem.separator())
 
         #if DEBUG
-            let debugItem = NSMenuItem(
+            debugItem = NSMenuItem(
                 title: "Debug UI", action: nil, keyEquivalent: "", target: self)
 
             debugItem.view = DebugUICell()
@@ -229,6 +234,11 @@ class ReporterStatusItemManager: NSObject {
 extension ReporterStatusItemManager: NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) {
         synchronizeUI()
+        #if DEBUG
+            if debugItem.view == nil {
+                debugItem.view = DebugUICell()
+            }
+        #endif
         guard let info = ApplicationMonitor.shared.getFocusedWindowInfo() else { return }
         updateCurrentProcessItem(info)
 
@@ -278,38 +288,48 @@ extension ReporterStatusItemManager {
     }
 }
 
-struct MediaInfoCellView: View {
+private struct MediaInfoCellView: View {
     var mediaName: String?
     var artist: String?
     var image: NSImage?
 
     @State var hover: Bool = false
-    var body: some View {
-        ZStack {
-            Color(NSColor.controlAccentColor).opacity(hover ? 1 : 0).clipShape(RoundedRectangle(cornerRadius: 4))
-                .padding(.horizontal, 5)
-            HStack {
-                Image(nsImage: image ?? NSImage())
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 36, height: 36)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
 
+    var body: some View {
+        HStack {
+            Spacer().frame(width: 24)
+            Image(nsImage: image ?? NSImage())
+                .resizable()
+                .scaledToFit()
+                .frame(width: 36, height: 36)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+            HStack {
                 VStack(alignment: .leading) {
                     Text(mediaName ?? "No Media")
                         .font(.headline)
                         .lineLimit(1)
                         .truncationMode(.tail)
+                        .foregroundStyle(hover ? .white : .primary)
                     Text(artist ?? "-")
                         .font(.subheadline)
                         .lineLimit(1)
                         .truncationMode(.tail)
-                        .foregroundStyle(.secondary)
-                }.padding(.leading, 4)
+                        .foregroundStyle(hover ? .white : .secondary)
+                }
                 Spacer()
-            }.frame(minWidth: 0, minHeight: 40).padding(.leading, 24)
+            }.padding(.leading, 4).frame(width: 200)
 
-        }.onHover { hover in
+            Spacer()
+        }
+        .frame(minWidth: 0, minHeight: 40)
+        .padding(.leading, 24)
+        .background {
+            if hover {
+                SelectionBackground(isSelected: hover).padding(.horizontal, 5)
+            }
+        }
+        .onHover { hover in
             self.hover = hover
         }
     }
@@ -317,27 +337,41 @@ struct MediaInfoCellView: View {
 
 #if DEBUG
     class DebugUICell: NSStackView {
-        var backgroundView: NSView!
+        var backgroundView: NSVisualEffectView!
+        var trackingArea: NSTrackingArea?
+
+        var debugLabel: NSTextField!
+        var debugIcon: NSImageView!
+
         convenience init() {
             self.init(frame: .zero)
 
             let stackView = self
             stackView.orientation = .horizontal
             stackView.spacing = 8
-            backgroundView = NSView()
+
+            // 使用系统菜单项选中样式
+            backgroundView = NSVisualEffectView()
+            // 菜单项高亮使用 .selection 材质
+            backgroundView.material = .selection
+            backgroundView.state = .active
+            backgroundView.wantsLayer = true
+            backgroundView.layer?.cornerRadius = 4
+            backgroundView.alphaValue = 0
+
+            // 一个小技巧：设置为强调模式以获取更蓝的外观
+            backgroundView.isEmphasized = true
+
+            // 移除任何可能影响颜色的背景
+            backgroundView.layer?.backgroundColor = nil
+
             stackView.addSubview(backgroundView)
             backgroundView.snp.makeConstraints { make in
-                make.horizontalEdges.equalToSuperview()
+                make.horizontalEdges.equalToSuperview().inset(5)
                 make.verticalEdges.equalToSuperview()
-                make.width.equalToSuperview()
             }
 
-            backgroundView.wantsLayer = true
-            backgroundView.layer?.opacity = 0
-            backgroundView.layer?.backgroundColor = NSColor.controlAccentColor.cgColor
-            backgroundView.layer?.cornerRadius = 4
-
-            let debugIcon = NSImageView(
+            debugIcon = NSImageView(
                 image: NSImage(systemSymbolName: "snowflake", accessibilityDescription: "Debug UI")!
             )
             debugIcon.frame.size = NSSize(width: 16, height: 16)
@@ -345,27 +379,52 @@ struct MediaInfoCellView: View {
             debugIcon.snp.makeConstraints { make in
                 make.left.equalTo(24)
             }
-            let debugLabel = NSTextField(labelWithString: "Debug UI")
 
+            debugLabel = NSTextField(labelWithString: "Debug UI")
             debugLabel.isEditable = false
+            debugLabel.isBezeled = false
+            debugLabel.drawsBackground = false
             stackView.addArrangedSubview(debugLabel)
 
             stackView.gestureRecognizers = [
-                NSClickGestureRecognizer(target: self, action: #selector(debugUI))
+                NSClickGestureRecognizer(target: self, action: #selector(debugUI)),
             ]
+
+            // 确保视图被布局后更新 tracking areas
+            DispatchQueue.main.async {
+                self.updateTrackingAreas()
+            }
         }
 
-        override func awakeFromNib() {
-            // 创建 NSTrackingArea
-            let trackingArea = NSTrackingArea(
-                rect: bounds, // 跟踪区域（这里是整个视图）
-                options: [.mouseEnteredAndExited, .activeAlways], // 跟踪选项
-                owner: self, // 事件处理对象
-                userInfo: nil // 可选的用户信息
-            )
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            // 当视图添加到窗口时更新 tracking areas
+            updateTrackingAreas()
+        }
 
-            // 添加到视图
-            addTrackingArea(trackingArea)
+        override func viewDidMoveToSuperview() {
+            super.viewDidMoveToSuperview()
+            // 当视图添加到父视图时更新 tracking areas
+            updateTrackingAreas()
+        }
+
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+
+            // 移除旧的 tracking area
+            if let trackingArea = trackingArea {
+                removeTrackingArea(trackingArea)
+            }
+
+            // 创建并添加新的 tracking area
+            let newTrackingArea = NSTrackingArea(
+                rect: bounds,
+                options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+                owner: self,
+                userInfo: nil
+            )
+            addTrackingArea(newTrackingArea)
+            trackingArea = newTrackingArea
         }
 
         @objc private func debugUI() {
@@ -376,11 +435,37 @@ struct MediaInfoCellView: View {
         }
 
         override func mouseEntered(with event: NSEvent) {
-            backgroundView.layer?.opacity = 1
+            backgroundView.alphaValue = 1
+            // 修改文本和图标为白色以匹配选中状态
+            debugLabel.textColor = .white
+            debugIcon.contentTintColor = .white
         }
 
         override func mouseExited(with event: NSEvent) {
-            backgroundView.layer?.opacity = 0
+            backgroundView.alphaValue = 0
+            // 恢复文本和图标为默认颜色
+            debugLabel.textColor = .labelColor
+            debugIcon.contentTintColor = nil
         }
     }
 #endif
+
+struct SelectionBackground: NSViewRepresentable {
+    var isSelected: Bool
+
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let effectView = NSVisualEffectView()
+        effectView.material = .selection
+        effectView.wantsLayer = true
+        effectView.state = .active
+        effectView.layer?.cornerRadius = 4
+        effectView.isEmphasized = true
+        effectView.layer?.backgroundColor = nil
+
+        return effectView
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
+        nsView.alphaValue = isSelected ? 1 : 0
+    }
+}
