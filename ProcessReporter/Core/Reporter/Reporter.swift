@@ -72,7 +72,7 @@ class Reporter {
         ApplicationMonitor.shared.startWindowFocusMonitoring()
         ApplicationMonitor.shared.onWindowFocusChanged = { [unowned self] info in
             if PreferencesDataModel.shared.focusReport.value {
-                self.prepareSend(appName: info.appName)
+                self.prepareSend(windowInfo: info)
             }
         }
 
@@ -81,7 +81,8 @@ class Reporter {
 
     private var reporterInitializedTime: Date
 
-    private func prepareSend(appName: String) {
+    private func prepareSend(windowInfo: FocusedWindowInfo) {
+        let appName = windowInfo.appName
         let now = Date()
         // Ignore the first 2 seconds after initialization to wait for the setting synchronization to complete
         if now.timeIntervalSince(reporterInitializedTime) < 2 {
@@ -103,7 +104,7 @@ class Reporter {
         let mediaInfo = getMediaInfo()
 
         let dataModel = ReportModel(
-            processName: "",
+            windowInfo: nil,
             integrations: [],
             mediaInfo: nil)
 
@@ -114,14 +115,13 @@ class Reporter {
 
             if !cachedFilteredMediaAppNames.contains(mediaInfo.processName),
                !shouldIgnoreArtistNull
-               || (mediaInfo.artist != nil && !mediaInfo.artist!.isEmpty)
-            {
+               || (mediaInfo.artist != nil && !mediaInfo.artist!.isEmpty) {
                 dataModel.setMediaInfo(mediaInfo)
             }
         }
         // Filter process name
         if enabledTypes.contains(.process), !cachedFilteredProcessAppNames.contains(appName) {
-            dataModel.processName = appName
+            dataModel.setProcessInfo(windowInfo)
         }
         if let mediaInfo = mediaInfo, mediaInfo.playing {
             statusItemManager.updateCurrentMediaItem(mediaInfo)
@@ -175,12 +175,12 @@ class Reporter {
 
         let interval = PreferencesDataModel.shared.sendInterval.value
         timer = Timer.scheduledTimer(
-            withTimeInterval: TimeInterval(interval.rawValue), repeats: true)
-        { [weak self] _ in
+            withTimeInterval: TimeInterval(interval.rawValue), repeats: true
+        ) { [weak self] _ in
             Task { @MainActor in
                 guard let self = self else { return }
                 if let info = ApplicationMonitor.shared.getFocusedWindowInfo() {
-                    self.prepareSend(appName: info.appName)
+                    self.prepareSend(windowInfo: info)
                 }
             }
         }
@@ -240,8 +240,8 @@ extension Reporter {
         }
 
         if preferences.isEnabled.value {
-            if let appName = ApplicationMonitor.shared.getFocusedWindowInfo()?.appName {
-                prepareSend(appName: appName)
+            if let info = ApplicationMonitor.shared.getFocusedWindowInfo() {
+                prepareSend(windowInfo: info)
             }
         }
 
@@ -263,6 +263,18 @@ extension Reporter {
             }
         }
 
-        disposers.append(contentsOf: [d1, d2, d3])
+        let d4 = preferences.s3Integration.subscribe { [weak self] event in
+            guard let self = self else { return }
+
+            if let config = event.element {
+                if config.isEnabled {
+                    self.registerS3()
+                } else {
+                    self.unregisterS3()
+                }
+            }
+        }
+
+        disposers.append(contentsOf: [d1, d2, d3, d4])
     }
 }

@@ -28,6 +28,8 @@ class ReportModel {
     var mediaImage: NSImage?
     @Transient
     var mediaInfoRaw: MediaInfo?
+    @Transient
+    var processInfoRaw: FocusedWindowInfo?
 
     // 持久化字段：存储 JSON 字符串
     @Attribute
@@ -36,42 +38,52 @@ class ReportModel {
     // 外部使用的 [String] 接口
     var integrations: [String] {
         get {
-            (try? JSONDecoder().decode([String].self, from: Data(self.integrationsRaw.utf8))) ?? []
+            (try? JSONDecoder().decode([String].self, from: Data(integrationsRaw.utf8))) ?? []
         }
         set {
-            self.integrationsRaw =
+            integrationsRaw =
                 (try? JSONEncoder().encode(newValue)).flatMap { String(data: $0, encoding: .utf8) }
                     ?? "[]"
         }
     }
 
     func setMediaInfo(_ mediaInfo: MediaInfo) {
-        self.artist = mediaInfo.artist
-        self.mediaName = mediaInfo.name
-        self.mediaProcessName = mediaInfo.processName
-        self.mediaDuration = mediaInfo.duration
-        self.mediaElapsedTime = mediaInfo.elapsedTime
+        artist = mediaInfo.artist
+        mediaName = mediaInfo.name
+        mediaProcessName = mediaInfo.processName
+        mediaDuration = mediaInfo.duration
+        mediaElapsedTime = mediaInfo.elapsedTime
         if let base64 = mediaInfo.image, let data = Data(base64Encoded: base64) {
-            self.mediaImage = NSImage(data: data)
+            mediaImage = NSImage(data: data)
         }
-        self.mediaInfoRaw = mediaInfo
+        mediaInfoRaw = mediaInfo
+    }
+
+    func setProcessInfo(_ processInfo: FocusedWindowInfo) {
+        processName = processInfo.appName
+        processInfoRaw = processInfo
     }
 
     init(
-        processName: String,
+        windowInfo: FocusedWindowInfo?,
         integrations: [String],
         mediaInfo: MediaInfo?
     ) {
-        self.id = UUID()
-        self.processName = processName
-        self.timeStamp = .now
-        self.integrationsRaw =
+        id = UUID()
+        processName = ""
+        processInfoRaw = windowInfo
+
+        timeStamp = .now
+        integrationsRaw =
             (try? JSONEncoder().encode(integrations)).flatMap { String(data: $0, encoding: .utf8) }
                 ?? "[]"
-        self.mediaInfoRaw = mediaInfo
+        mediaInfoRaw = mediaInfo
 
         if let mediaInfo = mediaInfo {
-            self.setMediaInfo(mediaInfo)
+            setMediaInfo(mediaInfo)
+        }
+        if let windowInfo = windowInfo {
+            setProcessInfo(windowInfo)
         }
     }
 }

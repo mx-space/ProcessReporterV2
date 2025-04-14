@@ -95,45 +95,23 @@ class PreferencesIntegrationS3View: IntegrationView {
         // Create app picker view
         showAppPicker { appId, appURL in
             guard appId != nil, let appURL = appURL else {
-                return  // User canceled
+                return // User canceled
             }
 
             // Get app icon
             let appIcon = NSWorkspace.shared.icon(forFile: appURL.path)
             if let iconData = appIcon.data {
                 // Perform upload
-                self.uploadIconToS3(iconData, appName: appURL.lastPathComponent)
+                Task {
+                    do {
+                        let url = try await S3Uploader.uploadIconToS3(iconData, appName: appURL.lastPathComponent)
+                        ToastManager.shared.success("Upload successful: \(url)")
+                    } catch {
+                        ToastManager.shared.error("Upload failed: \(error.localizedDescription)")
+                    }
+                }
             } else {
                 ToastManager.shared.error("Failed to convert app icon to image data")
-            }
-        }
-    }
-
-    private func uploadIconToS3(_ imageData: Data, appName: String) {
-        let config = PreferencesDataModel.s3Integration.value
-
-        // Create S3Uploader
-        let options = S3UploaderOptions(
-            bucket: config.bucket,
-            region: config.region,
-            accessKey: config.accessKey,
-            secretKey: config.secretKey,
-            endpoint: config.endpoint.isEmpty ? nil : config.endpoint
-        )
-
-        let uploader = S3Uploader(options: options)
-
-        // Upload the image
-        Task {
-            do {
-                let url = try await uploader.uploadImage(imageData, to: "app-icons")
-                DispatchQueue.main.async {
-                    ToastManager.shared.success("Upload successful: \(url)")
-                }
-            } catch {
-                DispatchQueue.main.async {
-                    ToastManager.shared.error("Upload failed: \(error.localizedDescription)")
-                }
             }
         }
     }

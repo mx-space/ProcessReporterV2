@@ -318,12 +318,12 @@ private struct MediaInfoCellView: View {
                         .foregroundStyle(hover ? .white : .secondary)
                 }
                 Spacer()
-            }.padding(.leading, 4).frame(width: 200)
+            }.padding(.leading, 4).frame(width: 120)
 
             Spacer()
         }
         .frame(minWidth: 0, minHeight: 40)
-        .padding(.leading, 24)
+//        .padding(.leading, 24)
         .background {
             if hover {
                 SelectionBackground(isSelected: hover).padding(.horizontal, 5)
