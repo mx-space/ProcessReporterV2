@@ -91,13 +91,13 @@ class PreferencesIntegrationS3View: IntegrationView {
     @objc private func testUpload() {
         // Create app picker view
         showAppPicker { appId, appURL in
-            guard let appId = appId, let appURL = appURL else {
-                return  // User canceled
+            guard let _ = appId, let appURL = appURL else {
+                return // User canceled
             }
 
             // Get app icon
             let appIcon = NSWorkspace.shared.icon(forFile: appURL.path)
-            if let iconData = self.convertNSImageToPNGData(appIcon) {
+            if let iconData = appIcon.data {
                 // Perform upload
                 self.uploadIconToS3(iconData, appName: appURL.lastPathComponent)
             } else {
@@ -133,41 +133,6 @@ class PreferencesIntegrationS3View: IntegrationView {
                 }
             }
         }
-    }
-
-    private func convertNSImageToPNGData(_ image: NSImage) -> Data? {
-        guard
-            let representation = NSBitmapImageRep(
-                bitmapDataPlanes: nil,
-                pixelsWide: Int(image.size.width),
-                pixelsHigh: Int(image.size.height),
-                bitsPerSample: 8,
-                samplesPerPixel: 4,
-                hasAlpha: true,
-                isPlanar: false,
-                colorSpaceName: .deviceRGB,
-                bytesPerRow: 0,
-                bitsPerPixel: 0
-            )
-        else {
-            return nil
-        }
-
-        representation.size = image.size
-
-        NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: representation)
-
-        image.draw(
-            in: NSRect(x: 0, y: 0, width: image.size.width, height: image.size.height),
-            from: .zero,
-            operation: .copy,
-            fraction: 1.0
-        )
-
-        NSGraphicsContext.restoreGraphicsState()
-
-        return representation.representation(using: .png, properties: [:])
     }
 
     private func showAppPicker(completion: @escaping (String?, URL?) -> Void) {

@@ -5,8 +5,6 @@
 //  Created by Innei on 2025/4/13.
 //
 
-import Alamofire
-// Import CommonCrypto for HMAC functions
 import CommonCrypto
 import CryptoKit
 import Foundation
@@ -48,306 +46,142 @@ class S3Uploader {
         self.options = options
     }
 
-    func uploadImage(_ imageData: Data, to subPath: String) async throws -> String {
-        // Generate MD5 hash of the image data
-        let md5Hash = MD5(data: imageData)
-        let fileName = "\(md5Hash).\(getFileExtension(from: imageData))"
-
-        // Create the full path for the file
-        let path = subPath.hasPrefix("/") ? String(subPath.dropFirst()) : subPath
-        let fullPath = path.hasSuffix("/") ? "\(path)\(fileName)" : "\(path)/\(fileName)"
-
-        // Create object key (without leading slash)
-        let objectKey = fullPath.hasPrefix("/") ? String(fullPath.dropFirst()) : fullPath
-
-        // Create the URL for the upload
-        let host = URL(string: endpoint)?.host
-        let uploadURL = "\(endpoint)/\(fullPath)"
-
-        // Content type based on image data
-        let contentType = getMimeType(from: imageData)
-
-        // Current date for signing
-        let currentDate = ISO8601DateFormatter.s3DateFormatter.string(from: Date())
-        let dateStamp = String(currentDate.prefix(8))
-
-        // Create authorization headers for AWS Signature V4
-        let headers = createSignatureV4Headers(
-            httpMethod: "PUT",
-            contentType: contentType,
-            date: currentDate,
-            dateStamp: dateStamp,
-            objectKey: objectKey,
-            payloadHash: sha256(data: imageData),
-            host: host ?? ""
-        )
-
-        // Upload the file
-        do {
-            _ = try await AF.upload(imageData, to: uploadURL, method: .put, headers: headers)
-                .validate()
-                .serializingData()
-                .value
-
-            // Return the URL of the uploaded file
-            return uploadURL
-        } catch {
-            throw error
-        }
+    // 计算 HMAC-SHA256 的辅助函数
+    func hmacSha256(key: Data, message: Data) -> Data {
+        var hmac = HMAC<SHA256>(key: SymmetricKey(data: key))
+        hmac.update(data: message)
+        return Data(hmac.finalize())
     }
 
-    // Create AWS Signature V4 headers
-    private func createSignatureV4Headers(
-        httpMethod: String,
-        contentType: String,
-        date: String,
-        dateStamp: String,
+    func uploadImage(_ imageData: Data, to path: String) async throws -> String {
+        let md5Filename = imageData.md5()
+        let objectKey = path + "/\(md5Filename).png"
+
+        try await uploadToS3(
+            objectKey: objectKey,
+            fileData: imageData,
+            contentType: "image/png"
+        )
+
+        return "\(path)/\(md5Filename)"
+    }
+
+    // 通用的 S3 兼容存储上传函数
+    func uploadToS3(
         objectKey: String,
-        payloadHash: String,
-        host: String
-    ) -> HTTPHeaders {
-        // Common AWS headers
-        var headers: [String: String] = [
-            "Content-Type": contentType,
-            "x-amz-date": date,
-            "x-amz-content-sha256": payloadHash,
-            "x-amz-acl": "public-read",
+        fileData: Data,
+        contentType: String
+    ) async throws {
+        let service = "s3"
+        let xAmzDate = ISO8601DateFormatter.s3DateFormatter.string(from: Date())
+        let dateStamp = String(xAmzDate.prefix(8)) // YYYYMMDD
+
+        // 计算哈希化的负载
+        let hashedPayload = fileData.sha256()
+
+        // 设置请求头
+        let host = URL(string: endpoint)?.host ?? ""
+        let contentLength = String(fileData.count)
+        let headers = [
             "Host": host,
+            "Content-Type": contentType,
+            "Content-Length": contentLength,
+            "x-amz-date": xAmzDate,
+            "x-amz-content-sha256": hashedPayload,
         ]
 
-        // Canonical request
-        let canonicalRequest = createCanonicalRequest(
-            httpMethod: httpMethod,
-            uri: "/\(objectKey)",
-            queryParams: "",
-            headers: headers,
-            payloadHash: payloadHash
-        )
-
-        // Create string to sign
-        let stringToSign = createStringToSign(
-            canonicalRequest: canonicalRequest,
-            timestamp: date,
-            dateStamp: dateStamp
-        )
-
-        // Calculate signature
-        let signature = calculateSignature(stringToSign: stringToSign, dateStamp: dateStamp)
-
-        // Create authorization header
-        let credentialScope = "\(dateStamp)/\(region)/s3/aws4_request"
-        let signedHeaders = headers.keys
-            .map { $0.lowercased() }
-            .sorted()
-            .joined(separator: ";")
-
-        let authorizationHeader =
-            "AWS4-HMAC-SHA256 " + "Credential=\(accessKey)/\(credentialScope), "
-            + "SignedHeaders=\(signedHeaders), " + "Signature=\(signature)"
-
-        headers["Authorization"] = authorizationHeader
-
-        return HTTPHeaders(headers)
-    }
-
-    // Create canonical request for AWS Signature V4
-    private func createCanonicalRequest(
-        httpMethod: String,
-        uri: String,
-        queryParams: String,
-        headers: [String: String],
-        payloadHash: String
-    ) -> String {
-        let canonicalHeaders =
-            headers.keys
-            .map { $0.lowercased() }
-            .sorted()
-            .map { key -> String in
-                let headerKey = key.lowercased()
-                let headerValue = headers[key] ?? ""
-                return "\(headerKey):\(headerValue)"
-            }
-            .joined(separator: "\n") + "\n"
-
-        let signedHeaders = headers.keys
-            .map { $0.lowercased() }
-            .sorted()
-            .joined(separator: ";")
-
-        return httpMethod + "\n" + uri + "\n" + queryParams + "\n" + canonicalHeaders + "\n"
-            + signedHeaders + "\n" + payloadHash
-    }
-
-    // Create string to sign for AWS Signature V4
-    private func createStringToSign(
-        canonicalRequest: String,
-        timestamp: String,
-        dateStamp: String
-    ) -> String {
-        let canonicalRequestHash = sha256(string: canonicalRequest)
-        let credentialScope = "\(dateStamp)/\(region)/s3/aws4_request"
-
-        return "AWS4-HMAC-SHA256\n" + timestamp + "\n" + credentialScope + "\n"
-            + canonicalRequestHash
-    }
-
-    // Calculate the signature for AWS Signature V4
-    private func calculateSignature(stringToSign: String, dateStamp: String) -> String {
-        let kDate = hmacSHA256(key: "AWS4" + secretKey, data: dateStamp)
-        let kRegion = hmacSHA256(key: kDate, data: region)
-        let kService = hmacSHA256(key: kRegion, data: "s3")
-        let kSigning = hmacSHA256(key: kService, data: "aws4_request")
-        return hmacSHA256(key: kSigning, data: stringToSign)
-    }
-
-    // HMAC-SHA256 hash function
-    private func hmacSHA256(key: String, data: String) -> String {
-        var digest = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
-        CCHmac(CCHmacAlgorithm(kCCHmacAlgSHA256), key, key.count, data, data.count, &digest)
-        return digest.map { String(format: "%02hhx", $0) }.joined()
-    }
-
-    // HMAC-SHA256 hash function with key as Data
-    private func hmacSHA256(key: Data, data: String) -> String {
-        let dataBytes = data.data(using: .utf8)!
-        var digest = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
-        key.withUnsafeBytes { keyBytes in
-            dataBytes.withUnsafeBytes { dataBytes in
-                CCHmac(
-                    CCHmacAlgorithm(kCCHmacAlgSHA256), keyBytes.baseAddress, key.count,
-                    dataBytes.baseAddress, dataBytes.count, &digest)
-            }
-        }
-        return digest.map { String(format: "%02hhx", $0) }.joined()
-    }
-
-    // SHA256 hash of a string
-    private func sha256(string: String) -> String {
-        let data = string.data(using: .utf8)!
-        return sha256(data: data)
-    }
-
-    // SHA256 hash of data
-    private func sha256(data: Data) -> String {
-        let hash = SHA256.hash(data: data)
-        return hash.compactMap { String(format: "%02x", $0) }.joined()
-    }
-
-    // Helper function to calculate MD5 hash
-    private func MD5(data: Data) -> String {
-        let hash = Insecure.MD5.hash(data: data)
-        return hash.map { String(format: "%02hhx", $0) }.joined()
-    }
-
-    // Helper function to determine file extension based on data
-    private func getFileExtension(from data: Data) -> String {
-        if data.starts(with: [0xFF, 0xD8]) {
-            return "jpg"
-        } else if data.starts(with: [0x89, 0x50, 0x4E, 0x47]) {
-            return "png"
-        } else if data.starts(with: [0x47, 0x49, 0x46]) {
-            return "gif"
-        } else if data.starts(with: [0x52, 0x49, 0x46, 0x46]) && data.count > 8
-            && data[8...11].elementsEqual([0x57, 0x45, 0x42, 0x50])
-        {
-            return "webp"
-        } else {
-            return "bin"
-        }
-    }
-
-    // Helper function to determine MIME type based on data
-    private func getMimeType(from data: Data) -> String {
-        let ext = getFileExtension(from: data)
-        switch ext {
-        case "jpg":
-            return "image/jpeg"
-        case "png":
-            return "image/png"
-        case "gif":
-            return "image/gif"
-        case "webp":
-            return "image/webp"
-        default:
-            return "application/octet-stream"
-        }
-    }
-
-    // Get authorization header for AWS Signature V4
-    private func getAuthHeaderV4(
-        httpMethod: String,
-        canonicalURI: String,
-        queryParams: String,
-        headers: [String: String],
-        payloadHash: String,
-        amzDate: String,
-        dateStamp: String
-    ) -> String {
-        // Step 1: Create canonical request
-        // Filter headers that should be signed (e.g., host, x-amz-*, content-type)
-        let headersToSign = headers.filter { key, _ in
-            key.lowercased() == "host" || key.lowercased().starts(with: "x-amz-")
-                || key.lowercased() == "content-type"
-        }
-
-        let canonicalHeadersString = getCanonicalHeaders(headers: headersToSign)
-        let signedHeadersString = getSignedHeaders(headers: headersToSign)
+        // 创建规范请求
+        let sortedHeaders = headers.keys.sorted()
+        let canonicalHeaders = sortedHeaders.map { key in
+            let value = headers[key]!.trimmingCharacters(in: .whitespacesAndNewlines)
+            return "\(key.lowercased()):\(value)"
+        }.joined(separator: "\n")
+        let signedHeaders = sortedHeaders.map { $0.lowercased() }.joined(separator: ";")
 
         let canonicalRequest = [
-            httpMethod,
-            canonicalURI,
-            queryParams,
-            canonicalHeadersString,  // Uses corrected function
-            signedHeadersString,  // Uses corrected function
-            payloadHash,
+            "PUT",
+            "/\(bucket)/\(objectKey)",
+            "", // 无查询参数
+            canonicalHeaders,
+            "", // 额外换行符
+            signedHeaders,
+            hashedPayload,
         ].joined(separator: "\n")
 
-        // Step 2: Create string to sign
+        // 创建待签名字符串
         let algorithm = "AWS4-HMAC-SHA256"
-        let credentialScope = [dateStamp, region, "s3", "aws4_request"].joined(separator: "/")
-        let canonicalRequestHash = sha256(string: canonicalRequest)
-
+        let credentialScope = "\(dateStamp)/\(region)/\(service)/aws4_request"
+        let hashedCanonicalRequest = canonicalRequest.sha256()
         let stringToSign = [
             algorithm,
-            amzDate,
+            xAmzDate,
             credentialScope,
-            canonicalRequestHash,
+            hashedCanonicalRequest,
         ].joined(separator: "\n")
 
-        // Step 3: Calculate signature
-        let signature = calculateSignature(
-            stringToSign: stringToSign,
-            dateStamp: dateStamp
+        // 计算签名
+        let kSecret = Data(("AWS4" + secretKey).utf8)
+        let kDate = hmacSha256(key: kSecret, message: Data(dateStamp.utf8))
+        let kRegion = hmacSha256(key: kDate, message: Data(region.utf8))
+        let kService = hmacSha256(key: kRegion, message: Data(service.utf8))
+        let kSigning = hmacSha256(key: kService, message: Data("aws4_request".utf8))
+        let signature = hmacSha256(key: kSigning, message: Data(stringToSign.utf8)).map { String(format: "%02x", $0) }.joined()
+
+        // 组装 Authorization 头
+        let authorization = "\(algorithm) Credential=\(accessKey)/\(credentialScope), SignedHeaders=\(signedHeaders), Signature=\(signature)"
+
+        // 创建并发送 PUT 请求
+        let url = URL(string: "\(endpoint)/\(bucket)/\(objectKey)")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.httpBody = fileData
+        for (key, value) in headers {
+            request.setValue(value, forHTTPHeaderField: key)
+        }
+        request.setValue(authorization, forHTTPHeaderField: "Authorization")
+
+        let (_, response) = try await URLSession.shared.data(for: request)
+        if let httpResponse = response as? HTTPURLResponse {
+            if httpResponse.statusCode == 200 {
+                print("上传成功")
+            } else {
+                throw NSError(domain: "", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "上传失败，状态码：\(httpResponse.statusCode)"])
+            }
+        }
+    }
+
+    // 为了兼容性保留的 R2 上传方法
+    func uploadFileToR2(
+        accountId: String,
+        accessKeyId: String,
+        secretAccessKey: String,
+        bucketName: String,
+        objectKey: String,
+        fileData: Data,
+        contentType: String
+    ) async throws {
+        // 保存当前选项
+        let originalOptions = options
+
+        // 临时设置 R2 选项
+        let r2Options = S3UploaderOptions(
+            bucket: bucketName,
+            region: "auto", // Cloudflare R2 使用 "auto" 作为区域
+            accessKey: accessKeyId,
+            secretKey: secretAccessKey,
+            endpoint: "https://\(accountId).r2.cloudflarestorage.com"
+        )
+        options = r2Options
+
+        // 使用通用上传方法
+        try await uploadToS3(
+            objectKey: objectKey,
+            fileData: fileData,
+            contentType: contentType
         )
 
-        // Step 4: Create authorization header
-        return [
-            "\(algorithm) Credential=\(accessKey)/\(credentialScope)",
-            "SignedHeaders=\(signedHeadersString)",
-            "Signature=\(signature)",
-        ].joined(separator: ", ")
-    }
-
-    // Get canonical headers string - CORRECTED
-    private func getCanonicalHeaders(headers: [String: String]) -> String {
-        return
-            headers
-            .map { (key, value) -> (String, String) in
-                // Lowercase key, trim whitespace from value
-                (key.lowercased(), value.trimmingCharacters(in: .whitespacesAndNewlines))
-            }
-            .sorted { $0.0 < $1.0 }  // Sort by key
-            .map { "\($0.0):\($0.1)" }  // Format as key:value
-            .joined(separator: "\n") + "\n"  // Join with newline AND add a final newline
-    }
-
-    // Get signed headers string - CORRECTED (uses the same filtered headers)
-    private func getSignedHeaders(headers: [String: String]) -> String {
-        return
-            headers
-            .map { $0.key.lowercased() }  // Lowercase keys
-            .sorted()  // Sort keys
-            .joined(separator: ";")  // Join with semicolon
+        // 恢复原始选项
+        options = originalOptions
     }
 }
 

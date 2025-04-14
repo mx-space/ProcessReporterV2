@@ -6,19 +6,27 @@
 //
 
 import AppKit
+import CoreGraphics
 
 extension NSImage {
     func withRoundedCorners(radius: CGFloat) -> NSImage? {
-        let newSize = self.size
+        let newSize = size
         let roundedImage = NSImage(size: newSize)
 
         roundedImage.lockFocus()
         let rect = NSRect(origin: .zero, size: newSize)
         let path = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
         path.addClip()
-        self.draw(in: rect)
+        draw(in: rect)
         roundedImage.unlockFocus()
 
         return roundedImage
+    }
+
+    var data: Data? {
+        guard let cgImage = cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+        let rep = NSBitmapImageRep(cgImage: cgImage)
+        rep.size = size
+        return rep.representation(using: .png, properties: [:])
     }
 }
