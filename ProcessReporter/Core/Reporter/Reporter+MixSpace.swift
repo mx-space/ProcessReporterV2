@@ -43,8 +43,11 @@ private func sendMixSpaceRequest(data: ReportModel) async -> Result<Void, Report
     let method = config.requestMethod
     let token = config.apiToken
 
+    let iconUrl = await IconModel.findIcon(for: data.processInfoRaw?.applicationIdentifier ?? "")?
+        .url
+
     let requestPayload = MixSpaceDataPayload(
-        process: .init(iconBase64: nil, iconUrl: nil, description: nil, name: data.processName),
+        process: .init(iconBase64: nil, iconUrl: iconUrl, description: nil, name: data.processName),
         media: .init(
             artist: data.artist,
             title: data.mediaName,
@@ -56,7 +59,7 @@ private func sendMixSpaceRequest(data: ReportModel) async -> Result<Void, Report
     )
 
     let headers: HTTPHeaders = [
-        "Content-Type": "application/json",
+        "Content-Type": "application/json"
     ]
 
     do {
@@ -73,7 +76,9 @@ private func sendMixSpaceRequest(data: ReportModel) async -> Result<Void, Report
 
         return .success(())
     } catch {
-        print("MixSpace request failed: \(error.asAFError?.localizedDescription ?? error.localizedDescription)")
+        print(
+            "MixSpace request failed: \(error.asAFError?.localizedDescription ?? error.localizedDescription)"
+        )
         return .failure(.networkError(error.localizedDescription))
     }
 }
@@ -85,7 +90,9 @@ extension Reporter {
             name: name,
             options: ReporterOptions(
                 onSend: { data in
-                    if !PreferencesDataModel.shared.mixSpaceIntegration.value.isEnabled { return .failure(.cancelled) }
+                    if !PreferencesDataModel.shared.mixSpaceIntegration.value.isEnabled {
+                        return .failure(.cancelled)
+                    }
 
                     return await sendMixSpaceRequest(data: data)
                 }

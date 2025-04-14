@@ -95,7 +95,7 @@ class PreferencesIntegrationS3View: IntegrationView {
         // Create app picker view
         showAppPicker { appId, appURL in
             guard appId != nil, let appURL = appURL else {
-                return // User canceled
+                return  // User canceled
             }
 
             // Get app icon
@@ -104,7 +104,8 @@ class PreferencesIntegrationS3View: IntegrationView {
                 // Perform upload
                 Task {
                     do {
-                        let url = try await S3Uploader.uploadIconToS3(iconData, appName: appURL.lastPathComponent)
+                        let url = try await S3Uploader.uploadIconToS3(
+                            iconData, appName: appURL.lastPathComponent)
                         ToastManager.shared.success("Upload successful: \(url)")
                     } catch {
                         ToastManager.shared.error("Upload failed: \(error.localizedDescription)")
@@ -191,7 +192,18 @@ class PreferencesIntegrationS3View: IntegrationView {
         buttonStack.spacing = 8
         buttonStack.addArrangedSubview(resetButton)
         buttonStack.addArrangedSubview(saveButton)
-        gridView.addRow(with: [NSView(), buttonStack])
+        let leftButtonStack = NSStackView()
+        leftButtonStack.orientation = .horizontal
+        let showDatabaseButton = NSButton(
+            title: "Show Database", target: self, action: #selector(showDatabase))
+        leftButtonStack.addArrangedSubview(showDatabaseButton)
+        gridView.addRow(with: [leftButtonStack, buttonStack])
         gridView.cell(for: buttonStack)?.xPlacement = .trailing
+    }
+
+    @objc private func showDatabase() {
+        let viewController = PreferencesS3IconsViewController()
+        // Open modal sheet
+        NSApplication.shared.keyWindow?.contentViewController?.presentAsSheet(viewController)
     }
 }

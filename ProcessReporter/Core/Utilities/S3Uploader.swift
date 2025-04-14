@@ -69,9 +69,9 @@ class S3Uploader {
 
         let customDomain = customDomain
         if !customDomain.isEmpty {
-            return "\(customDomain)/\(path)/\(md5Filename)"
+            return "\(customDomain)/\(objectKey)"
         }
-        return "\(path)/\(md5Filename)"
+        return "\(path)/\(objectKey)"
     }
 
     // 通用的 S3 兼容存储上传函数

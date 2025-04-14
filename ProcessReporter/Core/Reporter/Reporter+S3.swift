@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftData
 
 private let name = "S3"
 
@@ -19,18 +20,38 @@ extension Reporter {
                         return .failure(.cancelled)
                     }
 
-                    guard let nsImage = data.processInfoRaw?.icon, let iconData = nsImage.data else {
+                    guard let nsImage = data.processInfoRaw?.icon, let iconData = nsImage.data,
+                          let applicationIdentifier = data.processInfoRaw?.applicationIdentifier
+
+                    else {
                         return .failure(.cancelled)
                     }
 
-                    guard let url = try? await S3Uploader.uploadIconToS3(iconData, appName: data.processName) else {
+                    let icon = IconModel.findIcon(for: applicationIdentifier)
+                    if icon != nil {
+                        return .success(())
+                    }
+
+                    guard
+                        let url = try? await S3Uploader.uploadIconToS3(
+                            iconData, appName: data.processName
+                        )
+                    else {
                         return .failure(.networkError("Upload failed"))
                     }
 
-                    let iconModel = IconModel(name: data.processName, url: url)
+                    let iconModel = IconModel(
+                        name: data.processName, url: url,
+                        applicationIdentifier: applicationIdentifier
+                    )
                     if let context = Database.shared.ctx {
                         context.insert(iconModel)
-                        try? context.save()
+                        do {
+                            try context.save()
+                        } catch {
+                            print("Failed to save icon model: \(error)")
+                            
+                        }
                     }
 
                     return .success(())

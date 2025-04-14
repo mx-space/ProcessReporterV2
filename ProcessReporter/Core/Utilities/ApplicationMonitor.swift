@@ -12,6 +12,7 @@ import Foundation
 struct FocusedWindowInfo {
     let appName: String
     let icon: NSImage?
+    let applicationIdentifier: String
 }
 
 struct MouseClickInfo {
@@ -77,7 +78,9 @@ class ApplicationMonitor {
         let appName = app.localizedName ?? "Unknown"
         let icon = app.icon
 
-        return FocusedWindowInfo(appName: appName, icon: icon)
+        return FocusedWindowInfo(
+            appName: appName, icon: icon,
+            applicationIdentifier: app.bundleIdentifier ?? "")
     }
 
     func startMouseMonitoring() {

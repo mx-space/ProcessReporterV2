@@ -298,8 +298,6 @@ class PreferencesHistoryViewController: NSViewController, SettingWindowProtocol 
 
         if alert.runModal() == .alertFirstButtonReturn {
             do {
-                let descriptor = FetchDescriptor<ReportModel>()
-
                 // 批量删除
                 try context.delete(model: ReportModel.self)
                 try context.save()
@@ -344,7 +342,9 @@ class PreferencesHistoryViewController: NSViewController, SettingWindowProtocol 
             }
 
         case "integrations":
-            valueToCopy = model.integrations.joined(separator: ", ")
+            valueToCopy = model.integrations
+                .sorted()
+                .joined(separator: ", ")
 
         case "mediaProcess":
             if let mediaProcessName = model.mediaProcessName {
@@ -498,7 +498,9 @@ extension PreferencesHistoryViewController: NSTableViewDelegate {
             }
 
         case "integrations":
-            textField.stringValue = model.integrations.joined(separator: ", ")
+            textField.stringValue = model.integrations
+                .sorted()
+                .joined(separator: ", ")
 
         case "mediaProcess":
             if let mediaProcessName = model.mediaProcessName {
