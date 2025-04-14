@@ -13,6 +13,15 @@ struct FocusedWindowInfo {
     let appName: String
     let icon: NSImage?
     let applicationIdentifier: String
+    
+    let title: String?
+    
+    init(appName: String, icon: NSImage?, applicationIdentifier: String, title: String? = nil) {
+        self.appName = appName
+        self.icon = icon
+        self.applicationIdentifier = applicationIdentifier
+        self.title = title
+    }
 }
 
 struct MouseClickInfo {
@@ -64,6 +73,26 @@ class ApplicationMonitor {
     func isAccessibilityEnabled() -> Bool {
         return AXIsProcessTrusted()
     }
+    
+    
+    private func getWindowTitle(forPID pid: pid_t) -> String? {
+        let appElement = AXUIElementCreateApplication(pid)
+
+        var mainWindow: CFTypeRef?
+        let mainWindowError = AXUIElementCopyAttributeValue(appElement, kAXMainWindowAttribute as CFString, &mainWindow)
+        let window = mainWindow
+        guard mainWindowError == .success else {
+            return nil
+        }
+
+        var title: CFTypeRef?
+        let titleError = AXUIElementCopyAttributeValue(window as! AXUIElement, kAXTitleAttribute as CFString, &title)
+        guard titleError == .success, let titleString = title as? String else {
+            return nil
+        }
+
+        return titleString
+    }
 
     func getFocusedWindowInfo() -> FocusedWindowInfo? {
         guard isAccessibilityEnabled() else {
@@ -77,10 +106,13 @@ class ApplicationMonitor {
 
         let appName = app.localizedName ?? "Unknown"
         let icon = app.icon
-
+        let title = getWindowTitle(forPID: app.processIdentifier)
+         
         return FocusedWindowInfo(
             appName: appName, icon: icon,
-            applicationIdentifier: app.bundleIdentifier ?? "")
+            applicationIdentifier: app.bundleIdentifier ?? "",
+            title: title
+        )
     }
 
     func startMouseMonitoring() {

@@ -37,6 +37,12 @@ private struct MixSpaceDataPayload: Codable {
     }
 }
 
+private let descriptionDictionary: [String: String] = [
+    "Xcode": "编辑",
+    "Code": "编辑",
+    "Cursor": "编辑",
+]
+
 private func sendMixSpaceRequest(data: ReportModel) async -> Result<Void, ReporterError> {
     let config = PreferencesDataModel.shared.mixSpaceIntegration.value
     let endpoint = config.endpoint
@@ -46,8 +52,14 @@ private func sendMixSpaceRequest(data: ReportModel) async -> Result<Void, Report
     let iconUrl = await IconModel.findIcon(for: data.processInfoRaw?.applicationIdentifier ?? "")?
         .url
 
+    var description: String?
+
+    if descriptionDictionary.keys.contains(data.processName), let title = data.processInfoRaw?.title, let prefix = descriptionDictionary[data.processName] {
+        description = prefix + "\n" + title
+    }
+
     let requestPayload = MixSpaceDataPayload(
-        process: .init(iconBase64: nil, iconUrl: iconUrl, description: nil, name: data.processName),
+        process: .init(iconBase64: nil, iconUrl: iconUrl, description: description, name: data.processName),
         media: .init(
             artist: data.artist,
             title: data.mediaName,
@@ -59,7 +71,7 @@ private func sendMixSpaceRequest(data: ReportModel) async -> Result<Void, Report
     )
 
     let headers: HTTPHeaders = [
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     ]
 
     do {
