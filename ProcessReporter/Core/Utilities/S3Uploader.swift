@@ -40,6 +40,10 @@ class S3Uploader {
         options.secretKey
     }
 
+    var customDomain: String {
+        PreferencesDataModel.shared.s3Integration.value.customDomain
+    }
+
     init(
         options: S3UploaderOptions
     ) {
@@ -63,6 +67,10 @@ class S3Uploader {
             contentType: "image/png"
         )
 
+        let customDomain = customDomain
+        if !customDomain.isEmpty {
+            return "\(customDomain)/\(path)/\(md5Filename)"
+        }
         return "\(path)/\(md5Filename)"
     }
 
@@ -125,10 +133,13 @@ class S3Uploader {
         let kRegion = hmacSha256(key: kDate, message: Data(region.utf8))
         let kService = hmacSha256(key: kRegion, message: Data(service.utf8))
         let kSigning = hmacSha256(key: kService, message: Data("aws4_request".utf8))
-        let signature = hmacSha256(key: kSigning, message: Data(stringToSign.utf8)).map { String(format: "%02x", $0) }.joined()
+        let signature = hmacSha256(key: kSigning, message: Data(stringToSign.utf8)).map {
+            String(format: "%02x", $0)
+        }.joined()
 
         // 组装 Authorization 头
-        let authorization = "\(algorithm) Credential=\(accessKey)/\(credentialScope), SignedHeaders=\(signedHeaders), Signature=\(signature)"
+        let authorization =
+            "\(algorithm) Credential=\(accessKey)/\(credentialScope), SignedHeaders=\(signedHeaders), Signature=\(signature)"
 
         // 创建并发送 PUT 请求
         let url = URL(string: "\(endpoint)/\(bucket)/\(objectKey)")!
@@ -142,10 +153,10 @@ class S3Uploader {
 
         let (_, response) = try await URLSession.shared.data(for: request)
         if let httpResponse = response as? HTTPURLResponse {
-            if httpResponse.statusCode == 200 {
-                print("上传成功")
-            } else {
-                throw NSError(domain: "", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "上传失败，状态码：\(httpResponse.statusCode)"])
+            if httpResponse.statusCode != 200 {
+                throw NSError(
+                    domain: "", code: httpResponse.statusCode,
+                    userInfo: [NSLocalizedDescriptionKey: "上传失败，状态码：\(httpResponse.statusCode)"])
             }
         }
     }

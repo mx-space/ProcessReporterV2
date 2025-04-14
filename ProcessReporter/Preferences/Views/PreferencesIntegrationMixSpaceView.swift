@@ -32,13 +32,8 @@ class PreferencesIntegrationMixSpaceView: IntegrationView {
         // Initialize controls
         enabledButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
 
-        endpointInput = NSTextField(frame: .zero)
+        endpointInput = NSScrollTextField()
         endpointInput.placeholderString = "Enter endpoint URL"
-        endpointInput.isSelectable = true
-        endpointInput.isEditable = true
-        endpointInput.usesSingleLineMode = true
-        endpointInput.cell?.wraps = false
-        endpointInput.cell?.isScrollable = true
 
         // Enable standard key bindings
 
@@ -49,13 +44,8 @@ class PreferencesIntegrationMixSpaceView: IntegrationView {
         methodSelect.controlSize = .regular
         methodSelect.font = .systemFont(ofSize: NSFont.systemFontSize)
 
-        apiKeyInput = NSSecureTextField(frame: .zero)
+        apiKeyInput = NSScrollSecureTextField()
         apiKeyInput.placeholderString = "Enter API Key"
-        apiKeyInput.isSelectable = true
-        apiKeyInput.isEditable = true
-        apiKeyInput.usesSingleLineMode = true
-        apiKeyInput.cell?.wraps = false
-        apiKeyInput.cell?.isScrollable = true
 
         apiKeyInput.cell?.sendsActionOnEndEditing = true
 

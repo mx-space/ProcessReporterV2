@@ -18,30 +18,22 @@ class PreferencesIntegrationSlackView: IntegrationView {
         return button
     }()
 
-    private lazy var customEmojiInput: NSTextField = {
-        let textField = NSTextField()
+    private lazy var customEmojiInput: NSScrollTextField = {
+        let textField = NSScrollTextField()
         textField.placeholderString = "Custom Emoji"
-        textField.isEditable = true
-        textField.isSelectable = true
-        textField.cell?.isScrollable = true
+
         return textField
     }()
 
-    private lazy var customStatusTextInput: NSTextField = {
-        let textField = NSTextField()
+    private lazy var customStatusTextInput: NSScrollTextField = {
+        let textField = NSScrollTextField()
         textField.placeholderString = "Custom Status Text"
-        textField.isEditable = true
-        textField.isSelectable = true
-        textField.cell?.isScrollable = true
         return textField
     }()
 
-    private lazy var apiKeyInput: NSSecureTextField = {
-        let textField = NSSecureTextField()
+    private lazy var apiKeyInput: NSScrollSecureTextField = {
+        let textField = NSScrollSecureTextField()
         textField.placeholderString = "API Key"
-        textField.isEditable = true
-        textField.isSelectable = true
-        textField.cell?.isScrollable = true
         return textField
     }()
 

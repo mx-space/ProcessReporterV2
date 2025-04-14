@@ -18,6 +18,7 @@ class PreferencesIntegrationS3View: IntegrationView {
     private lazy var secretKeyInput: NSScrollSecureTextField = .init()
     private lazy var endpointInput: NSScrollTextField = .init()
     private lazy var pathInput: NSScrollTextField = .init()
+    private lazy var customDomainInput: NSScrollTextField = .init()
 
     private lazy var testButton: NSButton = {
         let button = NSButton(
@@ -68,6 +69,7 @@ class PreferencesIntegrationS3View: IntegrationView {
         accessKeyInput.stringValue = integration.accessKey
         secretKeyInput.stringValue = integration.secretKey
         endpointInput.stringValue = integration.endpoint
+        customDomainInput.stringValue = integration.customDomain
     }
 
     @objc private func reset() {
@@ -83,6 +85,7 @@ class PreferencesIntegrationS3View: IntegrationView {
         integration.accessKey = accessKeyInput.stringValue
         integration.secretKey = secretKeyInput.stringValue
         integration.endpoint = endpointInput.stringValue
+        integration.customDomain = customDomainInput.stringValue
 
         PreferencesDataModel.s3Integration.accept(integration)
         ToastManager.shared.success("Saved!")
@@ -91,8 +94,8 @@ class PreferencesIntegrationS3View: IntegrationView {
     @objc private func testUpload() {
         // Create app picker view
         showAppPicker { appId, appURL in
-            guard let _ = appId, let appURL = appURL else {
-                return // User canceled
+            guard appId != nil, let appURL = appURL else {
+                return  // User canceled
             }
 
             // Get app icon
@@ -181,8 +184,14 @@ class PreferencesIntegrationS3View: IntegrationView {
 
         // Endpoint row
         createRow(
-            leftView: NSTextField(labelWithString: "Custom Endpoint (optional)"),
+            leftView: NSTextField(labelWithString: "Custom Endpoint"),
             rightView: endpointInput
+        )
+
+        // Custom Domain row
+        createRow(
+            leftView: NSTextField(labelWithString: "Custom Domain"),
+            rightView: customDomainInput
         )
 
         // Path row

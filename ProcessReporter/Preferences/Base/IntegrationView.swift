@@ -10,7 +10,7 @@ import Cocoa
 class IntegrationView: NSView {
     lazy var gridView: NSGridView = {
         let gridView = NSGridView()
-        gridView.rowSpacing = 16
+        gridView.rowSpacing = 12
         gridView.columnSpacing = 12
         return gridView
     }()
@@ -26,11 +26,13 @@ class IntegrationView: NSView {
 
     func createRow(leftView: NSView, rightView: NSView) {
         gridView.addRow(with: [leftView, rightView])
-        gridView.cell(for: leftView)?.xPlacement = .trailing
-
-        // 设置行高
-        let row = gridView.row(at: gridView.numberOfRows - 1)
-        row.height = 22 // 设置统一的行高
+        if let cell = gridView.cell(for: leftView) {
+            cell.xPlacement = .trailing
+            cell.yPlacement = .center
+        }
+        leftView.snp.makeConstraints { make in
+            make.width.lessThanOrEqualTo(120)
+        }
 
         // 设置右侧控件的宽度约束
         if rightView is NSTextField {
@@ -41,6 +43,9 @@ class IntegrationView: NSView {
             rightView.snp.makeConstraints { make in
                 make.width.equalTo(120)
             }
+        }
+        rightView.snp.makeConstraints { make in
+            make.height.greaterThanOrEqualTo(22)
         }
     }
 }

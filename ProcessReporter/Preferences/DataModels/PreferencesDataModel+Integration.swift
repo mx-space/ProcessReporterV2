@@ -31,6 +31,8 @@ struct S3Integration: UserDefaultsJSONStorable, DictionaryConvertible {
     var secretKey: String = ""
     var endpoint: String = ""
     var path: String = ""
+
+    var customDomain: String = ""
 }
 
 extension PreferencesDataModel {
@@ -73,6 +75,7 @@ extension S3Integration {
         integration.secretKey = dict["secretKey"] as? String ?? ""
         integration.endpoint = dict["endpoint"] as? String ?? ""
         integration.path = dict["path"] as? String ?? ""
+        integration.customDomain = dict["customDomain"] as? String ?? ""
         return integration
     }
 }
