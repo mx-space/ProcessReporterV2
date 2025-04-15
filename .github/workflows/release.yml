@@ -16,12 +16,17 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Select Xcode
-        run: sudo xcode-select -switch /Applications/Xcode.app
+        run: sudo xcode-select -switch /Applications/Xcode_15.4.app
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: List directory
+        run: ls -la
 
       - name: Build
         run: |
-          cd ProcessReporter
-          xcodebuild -project ../ProcessReporter.xcodeproj \
+          xcodebuild -project ProcessReporter.xcodeproj \
             -scheme ProcessReporter \
             -configuration Release \
             -arch ${{ matrix.arch }} \
@@ -36,6 +41,6 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            ProcessReporter/build/Build/Products/Release/ProcessReporter.app.zip
+            build/Build/Products/Release/ProcessReporter.app.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
