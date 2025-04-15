@@ -1,6 +1,6 @@
 import AppKit
 
-import SwiftData
+var reporter: Reporter?
 
 func main() {
     let app = NSApplication.shared
@@ -9,7 +9,7 @@ func main() {
 
     Task { @MainActor in
         Database.shared.initialize()
-        _ = Reporter()
+        reporter = Reporter()
     }
 
     setupMenu()
