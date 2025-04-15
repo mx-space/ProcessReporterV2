@@ -153,10 +153,16 @@ class PreferencesGeneralViewController: NSViewController, SettingWindowProtocol 
     }
 
     private func checkWasLaunchedAtLogin() -> Bool {
-        let event = NSAppleEventManager.shared().currentAppleEvent
-        return event?.eventID == kAEOpenApplication
-            && event?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue
-            == keyAELaunchedAsLogInItem
+        let appService = SMAppService.mainApp
+
+        switch appService.status {
+        case .enabled:
+            return true
+        case .notRegistered, .notFound:
+            return false
+        default:
+            return false
+        }
     }
 }
 

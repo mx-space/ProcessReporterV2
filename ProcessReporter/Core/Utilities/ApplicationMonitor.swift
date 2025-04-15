@@ -9,26 +9,6 @@ import Accessibility
 import AppKit
 import Foundation
 
-struct FocusedWindowInfo {
-    let appName: String
-    let icon: NSImage?
-    let applicationIdentifier: String
-    
-    let title: String?
-    
-    init(appName: String, icon: NSImage?, applicationIdentifier: String, title: String? = nil) {
-        self.appName = appName
-        self.icon = icon
-        self.applicationIdentifier = applicationIdentifier
-        self.title = title
-    }
-}
-
-struct MouseClickInfo {
-    let location: NSPoint
-    let timestamp: TimeInterval
-}
-
 class ApplicationMonitor {
     static let shared = ApplicationMonitor()
 
@@ -63,7 +43,7 @@ class ApplicationMonitor {
                     NSWorkspace.shared.open(
                         URL(
                             string:
-                                "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+                            "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
                         )!)
                 }
             }
@@ -73,8 +53,7 @@ class ApplicationMonitor {
     func isAccessibilityEnabled() -> Bool {
         return AXIsProcessTrusted()
     }
-    
-    
+
     private func getWindowTitle(forPID pid: pid_t) -> String? {
         let appElement = AXUIElementCreateApplication(pid)
 
@@ -103,14 +82,19 @@ class ApplicationMonitor {
         guard let app = NSWorkspace.shared.frontmostApplication else {
             return nil
         }
+        let applicationIdentifier = app.bundleIdentifier ?? ""
+        
+        if IgnoreSystemApplication.contains(applicationIdentifier) {
+            return nil
+        }
 
         let appName = app.localizedName ?? "Unknown"
         let icon = app.icon
         let title = getWindowTitle(forPID: app.processIdentifier)
-         
+
         return FocusedWindowInfo(
             appName: appName, icon: icon,
-            applicationIdentifier: app.bundleIdentifier ?? "",
+            applicationIdentifier: applicationIdentifier,
             title: title
         )
     }
@@ -159,7 +143,7 @@ class ApplicationMonitor {
             queue: .main
         ) { [weak self] _ in
             guard let self = self,
-                let windowInfo = self.getFocusedWindowInfo()
+                  let windowInfo = self.getFocusedWindowInfo()
             else {
                 return
             }

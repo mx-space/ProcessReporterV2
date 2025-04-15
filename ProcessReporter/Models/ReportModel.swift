@@ -87,3 +87,19 @@ class ReportModel {
         }
     }
 }
+
+#if DEBUG
+extension ReportModel: CustomDebugStringConvertible {
+    var debugDescription: String {
+        return "Process Name: \(processName)\n" +
+            "Process Title: \(processInfoRaw?.title ?? "N/A")\n" +
+            "Artist: \(artist ?? "N/A")\n" +
+            "Media Name: \(mediaName ?? "N/A")\n" +
+            "Media Process Name: \(mediaProcessName ?? "N/A")\n" +
+            "Media Duration: \(mediaDuration?.description ?? "N/A")\n" +
+            "Media Elapsed Time: \(mediaElapsedTime?.description ?? "N/A")\n" +
+            "Timestamp: \(timeStamp)\n"
+    }
+}
+
+#endif

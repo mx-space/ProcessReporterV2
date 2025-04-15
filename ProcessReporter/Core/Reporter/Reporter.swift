@@ -128,6 +128,7 @@ class Reporter {
         }
 
         Task { @MainActor in
+            debugPrint(dataModel)
             let result = await self.send(data: dataModel)
             var isAllSuccess = false
             var isAllFailed = false
