@@ -1,64 +1,27 @@
-const process = null
+function assetAuth(ctx: Context) {
+  const body = ctx.req.body
+  const authKey = ctx.secret.key
+  if (ctx.isAuthenticated) return
+  if (body.key !== authKey) {
+    ctx.throws(401, 'Unauthorized')
+  }
+}
 
 export default async function handler(ctx: Context) {
-  const { process: processName, key, media, meta } = ctx.req.body || {}
-  // handle GET
-  {
-    const [processInfo, mediaInfo] = await Promise.all([
-      ctx.storage.cache.get('ps') as Promise<Process | undefined>,
-      ctx.storage.cache.get('media') as Promise<Media | undefined>,
-    ])
-    if (!key) {
-      return {
-        processName: processInfo?.name,
-        processInfo,
-        mediaInfo,
-      }
+  const method = ctx.req.method.toLowerCase()
+
+  switch (method) {
+    case 'get': {
+      return GET(ctx)
     }
-  }
+    case 'post': {
+      assetAuth(ctx)
+      return POST(ctx)
+    }
 
-  const ts = +new Date()
-  // if (Math.abs(ts - timestamp) > 1000 * 10) {
-  //   ctx.throws(400, 'this request is outdate')
-  //   return
-  // }
-
-  const processInfo: Process = {
-    name: processName,
-    ...meta,
-  }
-
-  const validKey = (await ctx.secret.key) || 'testing'
-  if (key != validKey)
-    ctx.throws(401, "You haven't permission to update process info")
-
-  const originalPsInfo: Process | null = (await ctx.storage.cache.get(
-    'ps',
-  )) as any
-  await ctx.storage.cache.set('ps', processInfo, 300)
-
-  if (originalPsInfo?.name !== processName)
-    ctx?.broadcast?.('ps-update', {
-      processInfo,
-      process: processInfo.name,
-      ts,
-    })
-  if (media) {
-    await ctx.storage.cache.set('media', media, 10)
-  }
-
-  const mediaInfo: Media | undefined = (await ctx.storage.cache.get(
-    'media',
-  )) as any
-  if (mediaInfo?.title !== media?.title)
-    ctx?.broadcast?.('media-update', media || null)
-
-  return {
-    ok: 1,
-    mediaInfo,
-    process: processInfo.name,
-    processInfo,
-    timestamp: +new Date(),
+    default: {
+      ctx.throws(405, 'Method Not Allowed')
+    }
   }
 }
 
@@ -72,4 +35,51 @@ interface Process {
   iconBase64?: string
   iconUrl?: string
   description?: string
+}
+
+async function GET(ctx: Context) {
+  const [processInfo, mediaInfo] = await Promise.all([
+    ctx.storage.cache.get<Process>('ps'),
+    ctx.storage.cache.get<Media>('media'),
+  ])
+
+  return {
+    processName: processInfo?.name,
+    processInfo,
+    mediaInfo,
+  }
+}
+async function POST(ctx: Context) {
+  const [cachedProcessInfo, cachedMediaInfo] = await Promise.all([
+    ctx.storage.cache.get<Process>('ps'),
+    ctx.storage.cache.get<Media>('media'),
+  ])
+
+  const ts = +new Date()
+
+  const psInfo = ctx.req.body.process as Process
+  const mediaInfo = ctx.req.body.media as Media
+
+  if (psInfo?.name !== cachedProcessInfo?.name)
+    ctx?.broadcast?.('ps-update', {
+      processInfo: psInfo,
+      process: psInfo.name,
+      ts,
+    })
+
+  if (cachedMediaInfo?.title !== mediaInfo?.title)
+    ctx?.broadcast?.('media-update', mediaInfo || null)
+
+  if (mediaInfo) {
+    await ctx.storage.cache.set('media', mediaInfo, 10)
+  }
+  await ctx.storage.cache.set('ps', psInfo, 300)
+
+  return {
+    ok: 1,
+    mediaInfo: cachedMediaInfo,
+    process: cachedProcessInfo.name,
+    processInfo: cachedProcessInfo,
+    timestamp: +new Date(),
+  }
 }
