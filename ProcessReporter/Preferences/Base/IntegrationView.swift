@@ -16,12 +16,34 @@ class IntegrationView: NSView {
     }()
 
     func setupUI() {
-        addSubview(gridView)
-        gridView.snp.makeConstraints { make in
-            make.centerX.equalToSuperview()
-            make.top.equalToSuperview().offset(20)
-            make.width.lessThanOrEqualToSuperview().inset(40)
+        let scrollView = NSScrollView()
+        let documentView = NSView()
+        documentView.addSubview(gridView)
+        scrollView.documentView = documentView
+        addSubview(scrollView)
+
+        // 确保 scrollView 填满父视图
+        scrollView.snp.makeConstraints { make in
+            make.edges.equalToSuperview()
         }
+
+        // 设置 documentView 的约束，确保它至少填满 scrollView 的宽度
+        documentView.snp.makeConstraints { make in
+            make.width.equalTo(scrollView.snp.width) // 宽度与 scrollView 一致
+            make.top.equalToSuperview() // 顶部对齐
+            make.bottom.greaterThanOrEqualTo(scrollView.snp.bottom) // 确保高度至少填满 scrollView
+        }
+
+        // 设置 gridView 的约束，确保它顶部对齐且水平居中
+        gridView.snp.makeConstraints { make in
+            make.top.equalToSuperview().offset(20) // 顶部对齐并偏移 20
+            make.centerX.equalToSuperview() // 水平居中
+            make.width.lessThanOrEqualToSuperview().inset(40) // 宽度约束
+            make.bottom.lessThanOrEqualToSuperview().inset(20) // 确保底部有边界
+        }
+
+        documentView.wantsLayer = true
+        scrollView.backgroundColor = NSColor.windowBackgroundColor
     }
 
     func createRow(leftView: NSView, rightView: NSView) {

@@ -131,11 +131,16 @@ class PreferencesIntegrationSlackView: IntegrationView {
                     labelWithString:
                         """
                         Template String Usage:
-                        1. {media_process_name} - Current media process name
-                        2. {media_name} - Current media name
-                        3. {artist} - Current media artist
-                        4. {media_name_artist} - Current media name and artist
-                        5. {process_name} - Current process name
+                        1. {media_process_name}
+                           - Current media process name
+                        2. {media_name}
+                           - Current media name
+                        3. {artist}
+                           - Current media artist
+                        4. {media_name_artist}
+                           - Current media name and artist
+                        5. {process_name}
+                           - Current process name
                         """
                 )
 
