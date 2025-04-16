@@ -36,7 +36,7 @@ class PreferencesIntegrationSlackView: IntegrationView {
 
     private lazy var apiKeyInput: NSScrollSecureTextField = {
         let textField = NSScrollSecureTextField()
-        textField.placeholderString = "API Key"
+        textField.placeholderString = "xoxp-"
         return textField
     }()
 
@@ -60,14 +60,14 @@ class PreferencesIntegrationSlackView: IntegrationView {
     }()
 
     private lazy var saveButton: NSButton = {
-        let button = NSButton(title: "Save", target: nil, action: nil)
+        let button = NSButton(title: "Save", target: self, action: #selector(save))
         button.bezelStyle = .push
         button.keyEquivalent = "\r"
         return button
     }()
 
     private lazy var resetButton: NSButton = {
-        let button = NSButton(title: "Reset", target: nil, action: nil)
+        let button = NSButton(title: "Reset", target: self, action: #selector(reset))
         button.bezelStyle = .rounded
         return button
     }()
@@ -87,6 +87,32 @@ class PreferencesIntegrationSlackView: IntegrationView {
             leftView: NSTextField(labelWithString: "Enabled"),
             rightView: enabledButton
         )
+
+        let text = "Go to https://api.slack.com/apps to create a new app"
+        let url = "https://api.slack.com/apps"
+
+        // 创建一个 NSMutableAttributedString 以便我们可以添加多个属性
+        let attributedText = NSMutableAttributedString(string: text)
+
+        // 设置整个文本的颜色
+        attributedText.addAttribute(
+            .foregroundColor,
+            value: NSColor.secondaryLabelColor,
+            range: NSRange(location: 0, length: text.count))
+
+        // 找到 URL 的范围
+        if let urlRange = text.range(of: url) {
+            let nsRange = NSRange(urlRange, in: text)
+
+            // 添加链接属性
+            attributedText.addAttributes(
+                [
+                    .link: URL(string: url)!,
+                    .foregroundColor: NSColor.linkColor,  // 使用系统默认的链接颜色
+                ], range: nsRange)
+        }
+
+        createRowDescription(attributedText: attributedText)
 
         // Api Key row
         createRow(
@@ -124,30 +150,22 @@ class PreferencesIntegrationSlackView: IntegrationView {
             rightView: defaultStatusTextInput
         )
 
-        createRow(
-            leftView: NSView(),
-            rightView: {
-                let textField = NSTextField(
-                    labelWithString:
-                        """
-                        Template String Usage:
-                        1. {media_process_name}
-                           - Current media process name
-                        2. {media_name}
-                           - Current media name
-                        3. {artist}
-                           - Current media artist
-                        4. {media_name_artist}
-                           - Current media name and artist
-                        5. {process_name}
-                           - Current process name
-                        """
-                )
-
-                textField.textColor = .secondaryLabelColor
-                textField.font = .systemFont(ofSize: 12)
-                return textField
-            }())
+        createRowDescription(
+            text:
+                """
+                Template String Usage:
+                1. {media_process_name}
+                   - Current media process name
+                2. {media_name}
+                   - Current media name
+                3. {artist}
+                   - Current media artist
+                4. {media_name_artist}
+                   - Current media name and artist
+                5. {process_name}
+                   - Current process name
+                """
+        )
 
         // Save button row
         let buttonStack = NSStackView()
@@ -174,6 +192,7 @@ class PreferencesIntegrationSlackView: IntegrationView {
             at: statusExpirationOptions.firstIndex(of: integration.expiration) ?? 0)
         defaultEmojiInput.stringValue = integration.defaultEmoji
         defaultStatusTextInput.stringValue = integration.defaultStatusText
+        apiKeyInput.stringValue = integration.apiToken
     }
 
     @objc private func reset() {
@@ -189,6 +208,7 @@ class PreferencesIntegrationSlackView: IntegrationView {
             statusExpirationOptions[statusExpirationDropdown.indexOfSelectedItem]
         integration.defaultEmoji = defaultEmojiInput.stringValue
         integration.defaultStatusText = defaultStatusTextInput.stringValue
+        integration.apiToken = apiKeyInput.stringValue
         PreferencesDataModel.shared.slackIntegration.accept(integration)
         ToastManager.shared.success("Saved!")
     }

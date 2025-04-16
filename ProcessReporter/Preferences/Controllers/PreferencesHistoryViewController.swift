@@ -236,8 +236,9 @@ class PreferencesHistoryViewController: NSViewController, SettingWindowProtocol 
             let lowercasedSearchText = searchText.lowercased()
 
             fetchedResults = allResults.filter { model in
+                let processName = model.processName?.lowercased() ?? "N/A"
                 // 搜索进程名
-                if model.processName.lowercased().contains(lowercasedSearchText) {
+                if processName.contains(lowercasedSearchText) {
                     return true
                 }
 
@@ -328,7 +329,7 @@ class PreferencesHistoryViewController: NSViewController, SettingWindowProtocol 
             valueToCopy = formatter.string(from: model.timeStamp)
 
         case "process":
-            valueToCopy = model.processName
+            valueToCopy = model.processName ?? ""
 
         case "media":
             if let mediaName = model.mediaName {
@@ -373,7 +374,7 @@ class PreferencesHistoryViewController: NSViewController, SettingWindowProtocol 
         // 创建包含所有模型数据的字典
         var jsonDict: [String: Any] = [
             "id": model.id,
-            "processName": model.processName,
+            "processName": model.processName ?? NSNull(),
             "timeStamp": model.timeStamp.description,
             "integrations": model.integrations,
         ]
@@ -484,7 +485,7 @@ extension PreferencesHistoryViewController: NSTableViewDelegate {
             textField.stringValue = formatter.string(from: model.timeStamp)
 
         case "process":
-            textField.stringValue = model.processName
+            textField.stringValue = model.processName ?? "N/A"
 
         case "media":
             if let mediaName = model.mediaName {

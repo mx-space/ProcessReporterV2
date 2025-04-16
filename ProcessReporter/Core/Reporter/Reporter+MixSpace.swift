@@ -54,8 +54,10 @@ private func sendMixSpaceRequest(data: ReportModel) async -> Result<Void, Report
 
     var description: String?
 
-    if descriptionDictionary.keys.contains(data.processName), let title = data.processInfoRaw?.title, let prefix = descriptionDictionary[data.processName] {
-        description = prefix + "\n" + title
+    if let processName = data.processName {
+        if descriptionDictionary.keys.contains(processName), let title = data.processInfoRaw?.title, let prefix = descriptionDictionary[processName] {
+            description = prefix + "\n" + title
+        }
     }
 
     let requestPayload = MixSpaceDataPayload(
@@ -103,7 +105,7 @@ extension Reporter {
             options: ReporterOptions(
                 onSend: { data in
                     if !PreferencesDataModel.shared.mixSpaceIntegration.value.isEnabled {
-                        return .failure(.cancelled)
+                        return .failure(.ignored)
                     }
 
                     return await sendMixSpaceRequest(data: data)

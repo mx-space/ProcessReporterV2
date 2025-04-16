@@ -3,8 +3,10 @@ import RxSwift
 
 enum ReporterError: Error {
     case networkError(String)
-    case cancelled
+    case cancelled(message: String)
     case unknown(message: String, successIntegrations: [String])
+    case ratelimitExceeded(message: String)
+    case ignored
 }
 
 struct ReporterOptions {
@@ -58,8 +60,21 @@ class Reporter {
             // 如果有失败的情况，将所有失败信息组合起来
             let errorMessage =
                 failures
-                    .map { "\($0.0): \($0.1)" }
-                    .joined(separator: ", ")
+                // Filter ignored errors
+                .filter { (_, result) in
+                    if case .failure(let error) = result {
+                        switch error {
+                        case .ignored, .ratelimitExceeded:
+                            return false
+                        default:
+                            return true
+                        }
+                    }
+                    return true
+                }
+                .map { "\($0.0): \($0.1)" }
+                .joined(separator: ", ")
+            print("Error: \(errorMessage)")
             return .failure(
                 .unknown(
                     message: "Some handlers failed: \(errorMessage)",
@@ -114,8 +129,9 @@ class Reporter {
             // Filter media name
 
             if !cachedFilteredMediaAppNames.contains(mediaInfo.processName),
-               !shouldIgnoreArtistNull
-               || (mediaInfo.artist != nil && !mediaInfo.artist!.isEmpty) {
+                !shouldIgnoreArtistNull
+                    || (mediaInfo.artist != nil && !mediaInfo.artist!.isEmpty)
+            {
                 dataModel.setMediaInfo(mediaInfo)
             }
         }
@@ -276,6 +292,17 @@ extension Reporter {
             }
         }
 
-        disposers.append(contentsOf: [d1, d2, d3, d4])
+        let d5 = preferences.slackIntegration.subscribe { [weak self] event in
+            guard let self = self else { return }
+            if let config = event.element {
+                if config.isEnabled {
+                    self.registerSlack()
+                } else {
+                    self.unregisterSlack()
+                }
+            }
+        }
+
+        disposers.append(contentsOf: [d1, d2, d3, d4, d5])
     }
 }

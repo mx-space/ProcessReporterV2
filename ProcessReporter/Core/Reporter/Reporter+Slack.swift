@@ -15,15 +15,24 @@ private struct ProfileData: Codable {
     var status_emoji: String
     var status_expiration: Int
 }
+private let slackRatelimiter = Ratelimiter(
+    capacity: 1,
+    refillRate: 10.0 / 60.0,  // 每分钟十个请求
+    minimumInterval: 10  // 最小间隔 10 秒
+)
 
 private let name = "Slack"
 extension Reporter {
-    func regsiterSlack() {
+    func registerSlack() {
         let options: ReporterOptions = .init { data in
             let slackConfig = PreferencesDataModel.shared.slackIntegration.value
             guard slackConfig.isEnabled else {
-                return .failure(.cancelled)
+                return .failure(.ignored)
             }
+            guard slackRatelimiter.tryAcquire() else {
+                return .failure(.ratelimitExceeded(message: "Slack integration is rate limited"))
+            }
+
             var statusText = slackConfig.statusTextTemplateString
             if let mediaProcessName = data.mediaProcessName {
                 statusText = slackConfig.statusTextTemplateString.replacingOccurrences(
@@ -43,13 +52,15 @@ extension Reporter {
                     of: "{media_name_artist}", with: "\(artistName) - \(mediaName)")
             }
 
-            statusText = statusText.replacingOccurrences(
-                of: "{process_name}", with: data.processName)
-
+            if let processName = data.processName {
+                statusText = statusText.replacingOccurrences(
+                    of: "{process_name}", with: processName)
+            }
             let statusExpiration = {
                 let currentDate = Date()
+                let duration = Int(data.mediaDuration ?? Double(slackConfig.expiration))
                 return Calendar.current.date(
-                    byAdding: .second, value: slackConfig.expiration, to: currentDate)!
+                    byAdding: .second, value: duration, to: currentDate)!
                     .timeIntervalSince1970
             }()
 
@@ -63,16 +74,20 @@ extension Reporter {
                     .unknown(message: "Missing Slack Api Token", successIntegrations: []))
             }
             do {
-                let headers: HTTPHeaders = ["Authorization": "Bearer " + token]
+                let headers: HTTPHeaders = [
+                    "Authorization": "Bearer " + token,
+                    "Content-Type": "application/json; charset=utf-8",
+                ]
                 _ = try await AF.request(
                     URL(string: stackEndpoint)!,
                     method: .post,
                     parameters: ["profile": profile],
                     encoder: JSONParameterEncoder.default,
-                    headers: headers)
-                    .validate()
-                    .serializingData()
-                    .value
+                    headers: headers
+                )
+                .validate()
+                .serializingData()
+                .value
 
             } catch {
                 print(
@@ -86,5 +101,7 @@ extension Reporter {
         self.register(name: name, options: options)
     }
 
-    func unregsiterSlack() {}
+    func unregisterSlack() {
+        self.unregister(name: name)
+    }
 }

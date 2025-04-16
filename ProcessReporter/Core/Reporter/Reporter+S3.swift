@@ -17,14 +17,14 @@ extension Reporter {
             options: ReporterOptions(
                 onSend: { data in
                     if !PreferencesDataModel.shared.s3Integration.value.isEnabled {
-                        return .failure(.cancelled)
+                        return .failure(.ignored)
                     }
 
                     guard let nsImage = data.processInfoRaw?.icon, let iconData = nsImage.data,
                           let applicationIdentifier = data.processInfoRaw?.applicationIdentifier
 
                     else {
-                        return .failure(.cancelled)
+                        return .failure(.cancelled(message: "S3: No icon data"))
                     }
 
                     let icon = IconModel.findIcon(for: applicationIdentifier)
@@ -32,16 +32,16 @@ extension Reporter {
                         return .success(())
                     }
 
-                    guard
-                        let url = try? await S3Uploader.uploadIconToS3(
-                            iconData, appName: data.processName
-                        )
+                    guard let appName = data.processName, !appName.isEmpty,
+                          let url = try? await S3Uploader.uploadIconToS3(
+                              iconData, appName: appName
+                          )
                     else {
                         return .failure(.networkError("Upload failed"))
                     }
 
                     let iconModel = IconModel(
-                        name: data.processName, url: url,
+                        name: appName, url: url,
                         applicationIdentifier: applicationIdentifier
                     )
                     if let context = Database.shared.ctx {
@@ -50,7 +50,6 @@ extension Reporter {
                             try context.save()
                         } catch {
                             print("Failed to save icon model: \(error)")
-                            
                         }
                     }
 

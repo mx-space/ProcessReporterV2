@@ -221,7 +221,7 @@ class ReporterStatusItemManager: NSObject {
     }
 
     func updateLastSendProcessNameItem(_ info: ReportModel) {
-        lastSendProcessNameItem.title = info.processName
+        lastSendProcessNameItem.title = info.processName ?? "N/A"
         lastReportTime = info.timeStamp
         updateLastSendTimeDisplay()
 

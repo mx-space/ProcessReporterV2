@@ -13,7 +13,7 @@ class ReportModel {
     @Attribute(.unique)
     var id: UUID
 
-    var processName: String
+    var processName: String?
     var timeStamp: Date
 
     // MARK: - Media Info
@@ -70,7 +70,7 @@ class ReportModel {
         mediaInfo: MediaInfo?
     ) {
         id = UUID()
-        processName = ""
+        processName = nil
         processInfoRaw = windowInfo
 
         timeStamp = .now
