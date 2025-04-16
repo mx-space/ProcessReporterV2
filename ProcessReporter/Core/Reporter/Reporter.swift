@@ -60,20 +60,20 @@ class Reporter {
             // 如果有失败的情况，将所有失败信息组合起来
             let errorMessage =
                 failures
-                // Filter ignored errors
-                .filter { (_, result) in
-                    if case .failure(let error) = result {
-                        switch error {
-                        case .ignored, .ratelimitExceeded:
-                            return false
-                        default:
-                            return true
+                    // Filter ignored errors
+                    .filter { _, result in
+                        if case let .failure(error) = result {
+                            switch error {
+                            case .ignored, .ratelimitExceeded:
+                                return false
+                            default:
+                                return true
+                            }
                         }
+                        return true
                     }
-                    return true
-                }
-                .map { "\($0.0): \($0.1)" }
-                .joined(separator: ", ")
+                    .map { "\($0.0): \($0.1)" }
+                    .joined(separator: ", ")
             print("Error: \(errorMessage)")
             return .failure(
                 .unknown(
@@ -129,8 +129,8 @@ class Reporter {
             // Filter media name
 
             if !cachedFilteredMediaAppNames.contains(mediaInfo.processName),
-                !shouldIgnoreArtistNull
-                    || (mediaInfo.artist != nil && !mediaInfo.artist!.isEmpty)
+               !shouldIgnoreArtistNull
+               || (mediaInfo.artist != nil && !mediaInfo.artist!.isEmpty)
             {
                 dataModel.setMediaInfo(mediaInfo)
             }
@@ -155,8 +155,10 @@ class Reporter {
             case let .failure(.unknown(_, successNames)):
                 dataModel.integrations = successNames
                 isAllFailed = dataModel.integrations.isEmpty
+            case let .failure(.networkError(message)):
+                isAllSuccess = false
             default:
-                break
+                isAllSuccess = true
             }
 
             let partiallySuccess = dataModel.integrations.count > 0
@@ -192,8 +194,8 @@ class Reporter {
 
         let interval = PreferencesDataModel.shared.sendInterval.value
         timer = Timer.scheduledTimer(
-            withTimeInterval: TimeInterval(interval.rawValue), repeats: true
-        ) { [weak self] _ in
+            withTimeInterval: TimeInterval(interval.rawValue), repeats: true)
+        { [weak self] _ in
             Task { @MainActor in
                 guard let self = self else { return }
                 if let info = ApplicationMonitor.shared.getFocusedWindowInfo() {
