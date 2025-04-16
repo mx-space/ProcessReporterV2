@@ -29,4 +29,9 @@ extension NSImage {
         rep.size = size
         return rep.representation(using: .png, properties: [:])
     }
+
+    convenience init?(data: Data, size: CGSize) {
+        self.init(data: data)
+        self.size = size
+    }
 }

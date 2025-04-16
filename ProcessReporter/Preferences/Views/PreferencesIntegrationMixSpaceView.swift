@@ -18,7 +18,7 @@ class PreferencesIntegrationMixSpaceView: IntegrationView {
     private lazy var saveButton: NSButton = {
         var saveButton = NSButton(title: "Save", target: self, action: #selector(save))
         saveButton.bezelStyle = .push
-        saveButton.bezelColor = .accent
+        saveButton.keyEquivalent = "\r"
         return saveButton
     }()
 

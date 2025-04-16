@@ -96,8 +96,7 @@ class ReporterStatusItemManager: NSObject {
         menu.addItem(enabledItem)
         menu.addItem(
             NSMenuItem(
-                title: "Settings", action: #selector(showSettings), keyEquivalent: ",", target: self
-            ))
+                title: "Settings", action: #selector(showSettings), keyEquivalent: ",", target: self))
 
         menu.addItem(NSMenuItem.separator())
 
@@ -198,14 +197,22 @@ class ReporterStatusItemManager: NSObject {
         if let mediaInfo = mediaInfo, let name = mediaInfo.name {
             currentMediaNameItem.title = formatMediaName(name, mediaInfo.artist)
             if let base64 = mediaInfo.image, let data = Data(base64Encoded: base64) {
-                let cell = NSHostingView(
-                    rootView: MediaInfoCellView(
-                        mediaName: name, artist: mediaInfo.artist, image: NSImage(data: data)))
-                cell.wantsLayer = true
-                currentMediaNameItem.view = cell
-                cell.snp.makeConstraints { make in
-                    make.height.equalTo(50)
-                }
+                let firstLine = name + "\n"
+                let secondLine = mediaInfo.artist ?? "-"
+                let fullString = firstLine + secondLine
+
+                let attributedString = NSMutableAttributedString(string: fullString)
+
+                // First line: Bold font
+                let firstLineRange = NSRange(location: 0, length: firstLine.count)
+                attributedString.addAttribute(.font, value: NSFont.systemFont(ofSize: 16, weight: .medium), range: firstLineRange)
+
+                // Second line: Secondary color
+                let secondLineRange = NSRange(location: firstLine.count, length: secondLine.count)
+                attributedString.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: secondLineRange)
+
+                currentMediaNameItem.attributedTitle = attributedString
+                currentMediaNameItem.image = NSImage(data: data, size: .init(width: 40, height: 40))?.withRoundedCorners(radius: 8)
             }
 
         } else {
@@ -285,53 +292,6 @@ extension ReporterStatusItemManager {
             snapshot.insert(.process)
         }
         PreferencesDataModel.shared.enabledTypes.accept(.init(types: snapshot))
-    }
-}
-
-private struct MediaInfoCellView: View {
-    var mediaName: String?
-    var artist: String?
-    var image: NSImage?
-
-    @State var hover: Bool = false
-
-    var body: some View {
-        HStack {
-            Spacer().frame(width: 24)
-            Image(nsImage: image ?? NSImage())
-                .resizable()
-                .scaledToFit()
-                .frame(width: 36, height: 36)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-
-            HStack {
-                VStack(alignment: .leading) {
-                    Text(mediaName ?? "No Media")
-                        .font(.headline)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .foregroundStyle(hover ? .white : .primary)
-                    Text(artist ?? "-")
-                        .font(.subheadline)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .foregroundStyle(hover ? .white : .secondary)
-                }
-                Spacer()
-            }.padding(.leading, 4).frame(width: 120)
-
-            Spacer()
-        }
-        .frame(minWidth: 0, minHeight: 40)
-//        .padding(.leading, 24)
-        .background {
-            if hover {
-                SelectionBackground(isSelected: hover).padding(.horizontal, 5)
-            }
-        }
-        .onHover { hover in
-            self.hover = hover
-        }
     }
 }
 
@@ -421,8 +381,7 @@ private struct MediaInfoCellView: View {
                 rect: bounds,
                 options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
                 owner: self,
-                userInfo: nil
-            )
+                userInfo: nil)
             addTrackingArea(newTrackingArea)
             trackingArea = newTrackingArea
         }
@@ -449,23 +408,3 @@ private struct MediaInfoCellView: View {
         }
     }
 #endif
-
-struct SelectionBackground: NSViewRepresentable {
-    var isSelected: Bool
-
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let effectView = NSVisualEffectView()
-        effectView.material = .selection
-        effectView.wantsLayer = true
-        effectView.state = .active
-        effectView.layer?.cornerRadius = 4
-        effectView.isEmphasized = true
-        effectView.layer?.backgroundColor = nil
-
-        return effectView
-    }
-
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
-        nsView.alphaValue = isSelected ? 1 : 0
-    }
-}

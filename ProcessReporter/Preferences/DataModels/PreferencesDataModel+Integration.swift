@@ -19,8 +19,11 @@ struct MixSpaceIntegration: UserDefaultsJSONStorable, DictionaryConvertible {
 struct SlackIntegration: UserDefaultsJSONStorable, DictionaryConvertible {
     var isEnabled: Bool = false
     var apiToken: String = ""
-    var customEmoji: String = ""
-    var customStatusText: String = ""
+    var customEmoji: String = "🎵"
+    var statusTextTemplateString: String = "{me} 正在使用 {media_process_name} 听 {media_name_artist}"
+    var expiration: Int = 60
+    var defaultEmoji: String = ""
+    var defaultStatusText: String = ""
 }
 // MARK: - S3 Integration Model
 struct S3Integration: UserDefaultsJSONStorable, DictionaryConvertible {
@@ -60,7 +63,10 @@ extension SlackIntegration {
         integration.isEnabled = dict["isEnabled"] as? Bool ?? false
         integration.apiToken = dict["apiToken"] as? String ?? ""
         integration.customEmoji = dict["customEmoji"] as? String ?? ""
-        integration.customStatusText = dict["customStatusText"] as? String ?? ""
+        integration.statusTextTemplateString = dict["statusTextTemplateString"] as? String ?? ""
+        integration.expiration = dict["expiration"] as? Int ?? 60
+        integration.defaultEmoji = dict["defaultEmoji"] as? String ?? ""
+        integration.defaultStatusText = dict["defaultStatusText"] as? String ?? ""
         return integration
     }
 }

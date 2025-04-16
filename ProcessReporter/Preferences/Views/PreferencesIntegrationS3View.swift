@@ -31,7 +31,7 @@ class PreferencesIntegrationS3View: IntegrationView {
     private lazy var saveButton: NSButton = {
         let button = NSButton(title: "Save", target: self, action: #selector(save))
         button.bezelStyle = .push
-        button.bezelColor = .accent
+        button.keyEquivalent = "\r"
         return button
     }()
 

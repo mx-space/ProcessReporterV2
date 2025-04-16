@@ -103,7 +103,7 @@ class PreferencesS3IconsViewController: NSViewController, SettingWindowProtocol 
         tableView.allowsColumnReordering = true
         tableView.allowsMultipleSelection = false
         tableView.columnAutoresizingStyle = .uniformColumnAutoresizingStyle
-        
+
         // Set up double-click action
         tableView.target = self
         tableView.doubleAction = #selector(tableViewDoubleClicked(_:))
@@ -368,7 +368,9 @@ class PreferencesS3IconsViewController: NSViewController, SettingWindowProtocol 
         // Create close button
         let closeButton = NSButton(title: "Close", target: self, action: #selector(closeModal))
         closeButton.bezelStyle = .rounded
-        closeButton.bezelColor = .accent
+        closeButton.bezelColor = .systemBlue
+        closeButton.keyEquivalent = "\u{1B}" // Escape key
+
         view.addSubview(closeButton)
 
         closeButton.snp.makeConstraints { make in
@@ -383,7 +385,7 @@ class PreferencesS3IconsViewController: NSViewController, SettingWindowProtocol 
             presentingViewController.dismiss(self)
         }
     }
-    
+
     @objc private func tableViewDoubleClicked(_ sender: Any) {
         guard tableView.clickedRow >= 0, tableView.clickedRow < fetchedResults.count else {
             return

@@ -10,10 +10,13 @@ import RxCocoa
 import RxSwift
 import SnapKit
 
+private let statusExpirationOptions = [30, 60, 120, 300]
+
 class PreferencesIntegrationSlackView: IntegrationView {
     private lazy var enabledButton: NSButton = {
         let button = NSButton(
-            checkboxWithTitle: "", target: nil, action: nil)
+            checkboxWithTitle: "", target: nil, action: nil
+        )
 
         return button
     }()
@@ -25,7 +28,7 @@ class PreferencesIntegrationSlackView: IntegrationView {
         return textField
     }()
 
-    private lazy var customStatusTextInput: NSScrollTextField = {
+    private lazy var statusTextTemplateStringInput: NSScrollTextField = {
         let textField = NSScrollTextField()
         textField.placeholderString = "Custom Status Text"
         return textField
@@ -37,10 +40,29 @@ class PreferencesIntegrationSlackView: IntegrationView {
         return textField
     }()
 
+    private lazy var statusExpirationDropdown: NSPopUpButton = {
+        let button = NSPopUpButton()
+        button.addItems(withTitles: statusExpirationOptions.map { String($0) })
+
+        return button
+    }()
+
+    private lazy var defaultEmojiInput: NSScrollTextField = {
+        let textField = NSScrollTextField()
+        textField.placeholderString = "Default Emoji"
+        return textField
+    }()
+
+    private lazy var defaultStatusTextInput: NSScrollTextField = {
+        let textField = NSScrollTextField()
+        textField.placeholderString = "Default Status Text"
+        return textField
+    }()
+
     private lazy var saveButton: NSButton = {
         let button = NSButton(title: "Save", target: nil, action: nil)
         button.bezelStyle = .push
-        button.bezelColor = .accent
+        button.keyEquivalent = "\r"
         return button
     }()
 
@@ -57,7 +79,7 @@ class PreferencesIntegrationSlackView: IntegrationView {
         synchronizeUI()
     }
 
-    override internal func setupUI() {
+    override func setupUI() {
         super.setupUI()
 
         // Enabled row
@@ -81,8 +103,46 @@ class PreferencesIntegrationSlackView: IntegrationView {
         // Custom Status Text row
         createRow(
             leftView: NSTextField(labelWithString: "Status Text"),
-            rightView: customStatusTextInput
+            rightView: statusTextTemplateStringInput
         )
+
+        // Status Expiration row
+        createRow(
+            leftView: NSTextField(labelWithString: "Status Expiration"),
+            rightView: statusExpirationDropdown
+        )
+
+        // Default Emoji row
+        createRow(
+            leftView: NSTextField(labelWithString: "Default Emoji"),
+            rightView: defaultEmojiInput
+        )
+
+        // Default Status Text row
+        createRow(
+            leftView: NSTextField(labelWithString: "Default Status Text"),
+            rightView: defaultStatusTextInput
+        )
+
+        createRow(
+            leftView: NSView(),
+            rightView: {
+                let textField = NSTextField(
+                    labelWithString:
+                        """
+                        Template String Usage:
+                        1. {media_process_name} - Current media process name
+                        2. {media_name} - Current media name
+                        3. {artist} - Current media artist
+                        4. {media_name_artist} - Current media name and artist
+                        5. {process_name} - Current process name
+                        """
+                )
+
+                textField.textColor = .secondaryLabelColor
+                textField.font = .systemFont(ofSize: 12)
+                return textField
+            }())
 
         // Save button row
         let buttonStack = NSStackView()
@@ -94,6 +154,7 @@ class PreferencesIntegrationSlackView: IntegrationView {
         gridView.cell(for: buttonStack)?.xPlacement = .trailing
     }
 
+    @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
@@ -103,7 +164,11 @@ class PreferencesIntegrationSlackView: IntegrationView {
         let integration = PreferencesDataModel.shared.slackIntegration.value
         enabledButton.state = integration.isEnabled ? .on : .off
         customEmojiInput.stringValue = integration.customEmoji
-        customStatusTextInput.stringValue = integration.customStatusText
+        statusTextTemplateStringInput.stringValue = integration.statusTextTemplateString
+        statusExpirationDropdown.selectItem(
+            at: statusExpirationOptions.firstIndex(of: integration.expiration) ?? 0)
+        defaultEmojiInput.stringValue = integration.defaultEmoji
+        defaultStatusTextInput.stringValue = integration.defaultStatusText
     }
 
     @objc private func reset() {
@@ -114,8 +179,13 @@ class PreferencesIntegrationSlackView: IntegrationView {
         var integration = PreferencesDataModel.shared.slackIntegration.value
         integration.isEnabled = enabledButton.state == .on
         integration.customEmoji = customEmojiInput.stringValue
-        integration.customStatusText = customStatusTextInput.stringValue
+        integration.statusTextTemplateString = statusTextTemplateStringInput.stringValue
+        integration.expiration =
+            statusExpirationOptions[statusExpirationDropdown.indexOfSelectedItem]
+        integration.defaultEmoji = defaultEmojiInput.stringValue
+        integration.defaultStatusText = defaultStatusTextInput.stringValue
         PreferencesDataModel.shared.slackIntegration.accept(integration)
         ToastManager.shared.success("Saved!")
     }
+
 }
