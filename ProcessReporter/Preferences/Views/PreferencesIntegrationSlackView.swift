@@ -28,6 +28,20 @@ class PreferencesIntegrationSlackView: IntegrationView {
         return textField
     }()
 
+    private lazy var emojiPickerButton: NSButton = {
+        let button = NSButton(
+            title: "😀", target: nil, action: #selector(NSApp.orderFrontCharacterPalette)
+        )
+        let emojiImage = NSImage(
+            systemSymbolName: "face.smiling", accessibilityDescription: "open emoji panel"
+        )
+        button.image = emojiImage
+        // Use .inline or .texturedRounded for a more compact look if desired
+        button.bezelStyle = .inline
+        button.isBordered = false // Optional: remove border for tighter integration
+        return button
+    }()
+
     private lazy var statusTextTemplateStringInput: NSScrollTextField = {
         let textField = NSScrollTextField()
         textField.placeholderString = "Custom Status Text"
@@ -72,6 +86,14 @@ class PreferencesIntegrationSlackView: IntegrationView {
         return button
     }()
 
+    private lazy var conditionEmojiButton: NSButton = {
+        let button = NSButton(
+            title: "Condition", target: self, action: #selector(openConditionEmojiModal)
+        )
+        button.bezelStyle = .rounded
+        return button
+    }()
+
     init() {
         super.init(frame: .zero)
 
@@ -98,7 +120,8 @@ class PreferencesIntegrationSlackView: IntegrationView {
         attributedText.addAttribute(
             .foregroundColor,
             value: NSColor.secondaryLabelColor,
-            range: NSRange(location: 0, length: text.count))
+            range: NSRange(location: 0, length: text.count)
+        )
 
         // 找到 URL 的范围
         if let urlRange = text.range(of: url) {
@@ -108,13 +131,15 @@ class PreferencesIntegrationSlackView: IntegrationView {
             attributedText.addAttributes(
                 [
                     .link: URL(string: url)!,
-                    .foregroundColor: NSColor.linkColor,  // 使用系统默认的链接颜色
-                ], range: nsRange)
+                    .foregroundColor: NSColor.linkColor, // 使用系统默认的链接颜色
+                ], range: nsRange
+            )
         }
 
         createRowDescription(attributedText: attributedText)
 
-        createRowDescription(text: "1. Go to Outh - Scopes - User Token Scopes. \n2. Add `users.profile:write`")
+        createRowDescription(
+            text: "1. Go to Outh - Scopes - User Token Scopes. \n2. Add `users.profile:write`")
         // Api Key row
         createRow(
             leftView: NSTextField(labelWithString: "API Key"),
@@ -124,7 +149,23 @@ class PreferencesIntegrationSlackView: IntegrationView {
         // Custom Emoji row
         createRow(
             leftView: NSTextField(labelWithString: "Emoji"),
-            rightView: globalCustomEmojiInput
+            rightView: {
+                let stackView = NSStackView()
+                stackView.orientation = .horizontal
+                stackView.spacing = 8
+
+                stackView.addArrangedSubview(globalCustomEmojiInput)
+                stackView.addArrangedSubview(emojiPickerButton)
+                emojiPickerButton.snp.makeConstraints { make in
+                    make.right.equalTo(globalCustomEmojiInput.snp.right).inset(4)
+                    make.verticalEdges.equalTo(globalCustomEmojiInput)
+                    make.height.equalTo(globalCustomEmojiInput)
+                    make.width.equalTo(16)
+                }
+
+                stackView.addArrangedSubview(conditionEmojiButton)
+                return stackView
+            }()
         )
 
         // Custom Status Text row
@@ -153,19 +194,19 @@ class PreferencesIntegrationSlackView: IntegrationView {
 
         createRowDescription(
             text:
-                """
-                Template String Usage:
-                1. {media_process_name}
-                   - Current media process name
-                2. {media_name}
-                   - Current media name
-                3. {artist}
-                   - Current media artist
-                4. {media_name_artist}
-                   - Current media name and artist
-                5. {process_name}
-                   - Current process name
-                """
+            """
+            Template String Usage:
+            1. {media_process_name}
+               - Current media process name
+            2. {media_name}
+               - Current media name
+            3. {artist}
+               - Current media artist
+            4. {media_name_artist}
+               - Current media name and artist
+            5. {process_name}
+               - Current process name
+            """
         )
 
         // Save button row
@@ -214,4 +255,64 @@ class PreferencesIntegrationSlackView: IntegrationView {
         ToastManager.shared.success("Saved!")
     }
 
+    @objc private func openConditionEmojiModal() {
+        NSApplication.shared.keyWindow?.contentViewController?.presentAsSheet(EmojiConditionViewController())
+    }
+}
+
+class EmojiConditionViewController: NSViewController {
+    private lazy var scrollView: NSScrollView = {
+        let scrollView = NSScrollView()
+        return scrollView
+    }()
+
+    private lazy var buttonStack: NSStackView = {
+        let stackView = NSStackView()
+        stackView.spacing = 8
+
+        stackView.orientation = .horizontal
+        stackView.distribution = .fill
+        return stackView
+    }()
+
+    private lazy var saveButton: NSButton = {
+        let button = NSButton(title: "Save", target: self, action: #selector(save))
+        button.bezelStyle = .push
+        button.keyEquivalent = "\r"
+        return button
+    }()
+
+    @objc func save() {}
+    @objc func cancel() {
+        dismiss(nil)
+    }
+
+    override func loadView() {
+        view = NSView(frame: NSRect(origin: .zero, size: .init(width: 500, height: 400)))
+
+        view.addSubview(scrollView)
+        view.addSubview(buttonStack)
+        let spacer = NSView()
+        spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        spacer.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        buttonStack.addArrangedSubview(spacer)
+        buttonStack.addArrangedSubview({
+            let button = NSButton(title: "Cancel", target: self, action: #selector(cancel))
+            button.bezelStyle = .rounded
+            button.keyEquivalent = "\u{1b}"
+            return button
+        }())
+        buttonStack.addArrangedSubview(saveButton)
+
+        buttonStack.snp.makeConstraints { make in
+            make.bottom.equalToSuperview().inset(16)
+            make.horizontalEdges.equalToSuperview().inset(16)
+        }
+
+        scrollView.documentView = NSView()
+        scrollView.snp.makeConstraints { make in
+            make.top.horizontalEdges.equalToSuperview()
+            make.bottom.equalTo(buttonStack.snp.top).offset(-16)
+        }
+    }
 }
