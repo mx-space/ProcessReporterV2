@@ -9,6 +9,10 @@ enum ReporterError: Error {
     case ignored
 }
 
+enum SendError: Error {
+    case failure([String])
+}
+
 struct ReporterOptions {
     let onSend: (_ data: ReportModel) async -> Result<Void, ReporterError>
 }
@@ -30,7 +34,7 @@ class Reporter {
         mapping.removeValue(forKey: name)
     }
 
-    public func send(data: ReportModel) async -> Result<[String], ReporterError> {
+    public func send(data: ReportModel) async -> Result<[String], SendError> {
         let results = await withTaskGroup(of: (String, Result<Void, ReporterError>).self) { group in
             for (name, options) in mapping {
                 group.addTask {
@@ -47,38 +51,43 @@ class Reporter {
         }
 
         var successNames = [String]()
-        // 检查是否所有的结果都是成功的
-        let failures = results.filter {
-            if case .failure = $0.1 { return true }
-            if case .success = $0.1 { successNames.append($0.0) }
-            return false
+        var failureNames = [String]()
+
+        let failures = results.filter { name, result in
+            if case .success = result {
+                successNames.append(name)
+                return false
+            }
+            if case let .failure(error) = result {
+                switch error {
+                case .ignored, .ratelimitExceeded:
+                    successNames.append(name)
+                    return false
+                default:
+                    failureNames.append(name)
+                    NSLog("\(name) failed: \(error)")
+                    return true
+                }
+            }
+            return true
+        }
+
+        if let context = Database.shared.ctx {
+            data.integrations = successNames
+            context.insert(data)
+            try? context.save()
+        }
+        let isAllFailed = successNames.isEmpty && !failures.isEmpty
+        if !isAllFailed {
+            statusItemManager.updateLastSendProcessNameItem(data)
         }
 
         if failures.isEmpty {
+            statusItemManager.toggleStatusItemIcon(.syncing)
             return .success(successNames)
         } else {
-            // 如果有失败的情况，将所有失败信息组合起来
-            let errorMessage =
-                failures
-                    // Filter ignored errors
-                    .filter { _, result in
-                        if case let .failure(error) = result {
-                            switch error {
-                            case .ignored, .ratelimitExceeded:
-                                return false
-                            default:
-                                return true
-                            }
-                        }
-                        return true
-                    }
-                    .map { "\($0.0): \($0.1)" }
-                    .joined(separator: ", ")
-            print("Error: \(errorMessage)")
-            return .failure(
-                .unknown(
-                    message: "Some handlers failed: \(errorMessage)",
-                    successIntegrations: successNames))
+            statusItemManager.toggleStatusItemIcon(isAllFailed ? .error : .partialError)
+            return .failure(.failure(failureNames))
         }
     }
 
@@ -144,40 +153,8 @@ class Reporter {
         }
 
         Task { @MainActor in
-            debugPrint(dataModel)
-            let result = await self.send(data: dataModel)
-            var isAllSuccess = false
-            var isAllFailed = false
-            switch result {
-            case let .success(successNames):
-                dataModel.integrations = successNames
-                isAllSuccess = true
-            case let .failure(.unknown(_, successNames)):
-                dataModel.integrations = successNames
-                isAllFailed = dataModel.integrations.isEmpty
-            case let .failure(.networkError(message)):
-                isAllSuccess = false
-            default:
-                isAllSuccess = true
-            }
-
-            let partiallySuccess = dataModel.integrations.count > 0
-
-            if partiallySuccess {
-                statusItemManager.updateLastSendProcessNameItem(dataModel)
-            }
-            if isAllFailed {
-                statusItemManager.toggleStatusItemIcon(.error)
-            }
-
-            if !isAllFailed && !isAllSuccess {
-                statusItemManager.toggleStatusItemIcon(.partialError)
-            }
-
-            if let context = Database.shared.ctx {
-                context.insert(dataModel)
-                try context.save()
-            }
+//            debugPrint(dataModel)
+            _ = await self.send(data: dataModel)
         }
     }
 

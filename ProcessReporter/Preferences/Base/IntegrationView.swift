@@ -29,17 +29,17 @@ class IntegrationView: NSView {
 
         // 设置 documentView 的约束，确保它至少填满 scrollView 的宽度
         documentView.snp.makeConstraints { make in
-            make.width.equalTo(scrollView.snp.width)  // 宽度与 scrollView 一致
-            make.top.equalToSuperview()  // 顶部对齐
-            make.bottom.greaterThanOrEqualTo(scrollView.snp.bottom)  // 确保高度至少填满 scrollView
+            make.width.equalTo(scrollView.snp.width) // 宽度与 scrollView 一致
+            make.top.equalToSuperview() // 顶部对齐
+            make.bottom.greaterThanOrEqualTo(scrollView.snp.bottom) // 确保高度至少填满 scrollView
         }
 
         // 设置 gridView 的约束，确保它顶部对齐且水平居中
         gridView.snp.makeConstraints { make in
-            make.top.equalToSuperview().offset(20)  // 顶部对齐并偏移 20
-            make.centerX.equalToSuperview()  // 水平居中
-            make.width.lessThanOrEqualToSuperview().inset(40)  // 宽度约束
-            make.bottom.lessThanOrEqualToSuperview().inset(20)  // 确保底部有边界
+            make.top.equalToSuperview().offset(20) // 顶部对齐并偏移 20
+            make.centerX.equalToSuperview() // 水平居中
+            make.width.lessThanOrEqualToSuperview().inset(40) // 宽度约束
+            make.bottom.lessThanOrEqualToSuperview().inset(20) // 确保底部有边界
         }
 
         documentView.wantsLayer = true
@@ -78,6 +78,7 @@ class IntegrationView: NSView {
         label.font = .systemFont(ofSize: 12)
         label.isSelectable = true
         label.isEditable = false
+        label.allowsEditingTextAttributes = true
 
         gridView.addRow(with: [NSView(), label])
     }
@@ -87,6 +88,12 @@ class IntegrationView: NSView {
         label.textColor = .secondaryLabelColor
         label.isSelectable = true
         label.font = .systemFont(ofSize: 12)
+        label.sizeToFit()
+        label.lineBreakMode = .byWordWrapping
         gridView.addRow(with: [NSView(), label])
+
+        label.snp.makeConstraints { make in
+            make.width.lessThanOrEqualTo(200)
+        }
     }
 }

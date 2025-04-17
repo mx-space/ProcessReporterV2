@@ -12,6 +12,10 @@ protocol DictionaryConvertible {
     static func fromDictionary(_ dict: [String: Any]) -> Self
 }
 
+protocol DictionaryConvertibleDelegate {
+    func toDictionary() -> Any
+}
+
 extension DictionaryConvertible {
     func toDictionary() -> [String: Any] {
         let mirror = Mirror(reflecting: self)
@@ -19,7 +23,15 @@ extension DictionaryConvertible {
 
         for child in mirror.children {
             guard let propertyName = child.label else { continue }
-            dict[propertyName] = child.value
+            if let child = child.value as? DictionaryConvertibleDelegate {
+                dict[propertyName] = child.toDictionary()
+            }
+            else if let child = child.value as? DictionaryConvertible {
+                dict[propertyName] = child.toDictionary()
+
+            } else {
+                dict[propertyName] = child.value
+            }
         }
 
         return dict

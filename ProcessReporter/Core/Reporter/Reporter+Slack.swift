@@ -15,13 +15,24 @@ private struct ProfileData: Codable {
     var status_emoji: String
     var status_expiration: Int
 }
+
 private let slackRatelimiter = Ratelimiter(
     capacity: 1,
-    refillRate: 10.0 / 60.0,  // 每分钟十个请求
-    minimumInterval: 10  // 最小间隔 10 秒
+    refillRate: 10.0 / 60.0, // 每分钟十个请求
+    minimumInterval: 10 // 最小间隔 10 秒
 )
 
+private let allowedTemplateVariants: Set<String> = [
+    "{media_process_name}",
+    "{media_name}",
+    "{artist}",
+    "{media_name_artist}",
+    "{process_name}",
+    "{media_name}",
+]
+
 private let name = "Slack"
+
 extension Reporter {
     func registerSlack() {
         let options: ReporterOptions = .init { data in
@@ -64,9 +75,23 @@ extension Reporter {
                     .timeIntervalSince1970
             }()
 
-            let profile: ProfileData = .init(
-                status_text: statusText, status_emoji: slackConfig.customEmoji,
+            let hasUnreplacedTemplate = allowedTemplateVariants.contains { template in
+                statusText.contains(template)
+            }
+
+            var profile: ProfileData = .init(
+                status_text: statusText, status_emoji: slackConfig.globalCustomEmoji,
                 status_expiration: Int(statusExpiration))
+
+            if hasUnreplacedTemplate {
+                if slackConfig.defaultEmoji.isEmpty {
+                    return .failure(.ignored)
+                }
+                profile.status_text = slackConfig.defaultStatusText
+                profile.status_emoji = slackConfig.defaultEmoji
+                profile.status_expiration = 3600
+            }
+
             let token = slackConfig.apiToken
 
             if token.isEmpty {
@@ -83,15 +108,14 @@ extension Reporter {
                     method: .post,
                     parameters: ["profile": profile],
                     encoder: JSONParameterEncoder.default,
-                    headers: headers
-                )
-                .validate()
-                .serializingData()
-                .value
+                    headers: headers)
+                    .validate()
+                    .serializingData()
+                    .value
 
             } catch {
-                print(
-                    "MixSpace request failed: \(error.asAFError?.localizedDescription ?? error.localizedDescription)"
+                NSLog(
+                    "Slack request failed: \(error.asAFError?.localizedDescription ?? error.localizedDescription)"
                 )
                 return .failure(.networkError(error.localizedDescription))
             }

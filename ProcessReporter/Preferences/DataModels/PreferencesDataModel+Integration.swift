@@ -19,13 +19,56 @@ struct MixSpaceIntegration: UserDefaultsJSONStorable, DictionaryConvertible {
 struct SlackIntegration: UserDefaultsJSONStorable, DictionaryConvertible {
     var isEnabled: Bool = false
     var apiToken: String = ""
-    var customEmoji: String = "🎵"
+    var globalCustomEmoji: String = "🎵"
     var statusTextTemplateString: String = "{me} 正在使用 {media_process_name} 听 {media_name_artist}"
     var expiration: Int = 60
     var defaultEmoji: String = ""
     var defaultStatusText: String = ""
+    var customEmojiConditionList: EmojiConditionList = .init()
 }
+
+struct EmojiConditionList: Codable, UserDefaultsStorable, DictionaryConvertible, DictionaryConvertibleDelegate {
+    func toDictionary() -> Any {
+        return conditions.map { $0.toDictionary() }
+    }
+
+    struct EmojiCondition: Codable, Equatable, UserDefaultsJSONStorable, DictionaryConvertible {
+        static func fromDictionary(_ dict: [String: Any]) -> EmojiConditionList.EmojiCondition {
+            let when = dict["when"] as? String ?? ""
+            let emoji = dict["emoji"] as? String ?? ""
+            return EmojiCondition(when: when, emoji: emoji)
+        }
+
+        let when: String
+        let emoji: String
+    }
+
+    private var conditions: [EmojiCondition] = []
+
+    init(conditions: [EmojiCondition] = []) {
+        self.conditions = conditions
+    }
+
+    func toStorable() -> Any? {
+        return conditions.map { $0.toDictionary() }
+    }
+
+    static func fromStorable(_ value: Any?) -> EmojiConditionList? {
+        guard let array = value as? [[String: Any]] else { return nil }
+        let conditions = array.compactMap { EmojiCondition.fromDictionary($0) }
+        return EmojiConditionList(conditions: conditions)
+    }
+
+    static func fromDictionary(_ dict: [String: Any]) -> EmojiConditionList {
+        if let conditions = dict as? [[String: Any]] {
+            return EmojiConditionList(conditions: conditions.compactMap { EmojiCondition.fromDictionary($0) })
+        }
+        return EmojiConditionList()
+    }
+}
+
 // MARK: - S3 Integration Model
+
 struct S3Integration: UserDefaultsJSONStorable, DictionaryConvertible {
     var isEnabled: Bool = false
     var bucket: String = ""
@@ -62,11 +105,14 @@ extension SlackIntegration {
         var integration = SlackIntegration()
         integration.isEnabled = dict["isEnabled"] as? Bool ?? false
         integration.apiToken = dict["apiToken"] as? String ?? ""
-        integration.customEmoji = dict["customEmoji"] as? String ?? ""
+        integration.globalCustomEmoji = dict["globalCustomEmoji"] as? String ?? ""
         integration.statusTextTemplateString = dict["statusTextTemplateString"] as? String ?? ""
         integration.expiration = dict["expiration"] as? Int ?? 60
         integration.defaultEmoji = dict["defaultEmoji"] as? String ?? ""
         integration.defaultStatusText = dict["defaultStatusText"] as? String ?? ""
+        if let conditions = dict["customEmojiConditionList"] as? [[String: Any]] {
+            integration.customEmojiConditionList = EmojiConditionList(conditions: conditions.compactMap { EmojiConditionList.EmojiCondition.fromDictionary($0) })
+        }
         return integration
     }
 }

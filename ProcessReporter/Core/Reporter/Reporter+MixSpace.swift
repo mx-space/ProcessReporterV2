@@ -90,7 +90,7 @@ private func sendMixSpaceRequest(data: ReportModel) async -> Result<Void, Report
 
         return .success(())
     } catch {
-        print(
+        NSLog(
             "MixSpace request failed: \(error.asAFError?.localizedDescription ?? error.localizedDescription)"
         )
         return .failure(.networkError(error.localizedDescription))

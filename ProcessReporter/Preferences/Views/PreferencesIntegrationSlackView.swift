@@ -21,7 +21,7 @@ class PreferencesIntegrationSlackView: IntegrationView {
         return button
     }()
 
-    private lazy var customEmojiInput: NSScrollTextField = {
+    private lazy var globalCustomEmojiInput: NSScrollTextField = {
         let textField = NSScrollTextField()
         textField.placeholderString = "Custom Emoji"
 
@@ -114,6 +114,7 @@ class PreferencesIntegrationSlackView: IntegrationView {
 
         createRowDescription(attributedText: attributedText)
 
+        createRowDescription(text: "1. Go to Outh - Scopes - User Token Scopes. \n2. Add `users.profile:write`")
         // Api Key row
         createRow(
             leftView: NSTextField(labelWithString: "API Key"),
@@ -123,7 +124,7 @@ class PreferencesIntegrationSlackView: IntegrationView {
         // Custom Emoji row
         createRow(
             leftView: NSTextField(labelWithString: "Emoji"),
-            rightView: customEmojiInput
+            rightView: globalCustomEmojiInput
         )
 
         // Custom Status Text row
@@ -186,7 +187,7 @@ class PreferencesIntegrationSlackView: IntegrationView {
         // Synchronize UI with data model
         let integration = PreferencesDataModel.shared.slackIntegration.value
         enabledButton.state = integration.isEnabled ? .on : .off
-        customEmojiInput.stringValue = integration.customEmoji
+        globalCustomEmojiInput.stringValue = integration.globalCustomEmoji
         statusTextTemplateStringInput.stringValue = integration.statusTextTemplateString
         statusExpirationDropdown.selectItem(
             at: statusExpirationOptions.firstIndex(of: integration.expiration) ?? 0)
@@ -202,7 +203,7 @@ class PreferencesIntegrationSlackView: IntegrationView {
     @objc private func save() {
         var integration = PreferencesDataModel.shared.slackIntegration.value
         integration.isEnabled = enabledButton.state == .on
-        integration.customEmoji = customEmojiInput.stringValue
+        integration.globalCustomEmoji = globalCustomEmojiInput.stringValue
         integration.statusTextTemplateString = statusTextTemplateStringInput.stringValue
         integration.expiration =
             statusExpirationOptions[statusExpirationDropdown.indexOfSelectedItem]

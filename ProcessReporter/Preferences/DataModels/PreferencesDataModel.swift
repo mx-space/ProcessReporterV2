@@ -54,7 +54,7 @@ class PreferencesDataModel {
                 PreferencesDataModel.focusReport.accept(focusReport)
             }
             if let sendIntervalRaw = dictionary["sendInterval"] as? Int,
-                let sendInterval = SendInterval(rawValue: sendIntervalRaw)
+               let sendInterval = SendInterval(rawValue: sendIntervalRaw)
             {
                 PreferencesDataModel.sendInterval.accept(sendInterval)
             }
