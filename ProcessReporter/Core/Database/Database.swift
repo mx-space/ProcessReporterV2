@@ -55,27 +55,49 @@ class Database {
     }
 }
 
-enum ReportModelV1: VersionedSchema {
-    static var versionIdentifier = Schema.Version(1, 0, 0)
-
-    static var models: [any PersistentModel.Type] {
-        [ReportModel.self]
-    }
-}
-
-enum IconModelV1: VersionedSchema {
-    static var versionIdentifier = Schema.Version(1, 0, 0)
-
-    static var models: [any PersistentModel.Type] {
-        [IconModel.self]
-    }
-}
 enum MigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [ReportModelV1.self, IconModelV1.self]
+        [ReportModelV1.self, IconModelV1.self, IconModelV2.self]
     }
 
     static var stages: [MigrationStage] {
-        []
+        [
+            MigrationStage.custom(
+                fromVersion: IconModelV1.self,
+                toVersion: IconModelV2.self,
+                willMigrate: { context in
+                    try migrateIconModelToV2(context: context)
+                },
+                didMigrate: nil
+            )
+        ]
+    }
+
+    static func migrateIconModelToV2(context: ModelContext) throws {
+        let fetchDescriptor = FetchDescriptor<IconModel>()
+        let allIcons = try context.fetch(fetchDescriptor)
+
+        // Group by applicationIdentifier
+        var iconsByIdentifier: [String: [IconModel]] = [:]
+
+        for icon in allIcons {
+            if iconsByIdentifier[icon.applicationIdentifier] == nil {
+                iconsByIdentifier[icon.applicationIdentifier] = []
+            }
+            iconsByIdentifier[icon.applicationIdentifier]?.append(icon)
+        }
+
+        // Keep first item, delete duplicates
+        for (_, icons) in iconsByIdentifier {
+            if icons.count > 1 {
+                // Keep the first one
+                let firstIcon = icons[0]
+
+                // Delete the rest
+                for i in 1..<icons.count {
+                    context.delete(icons[i])
+                }
+            }
+        }
     }
 }

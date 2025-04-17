@@ -305,7 +305,6 @@ class PreferencesS3IconsViewController: NSViewController, SettingWindowProtocol 
 
         // Create dictionary with all model data
         let jsonDict: [String: Any] = [
-            "id": model.id.uuidString,
             "name": model.name,
             "applicationIdentifier": model.applicationIdentifier,
             "url": model.url,
@@ -481,9 +480,7 @@ extension PreferencesS3IconsViewController: NSTableViewDelegate {
         }
 
         switch tableColumn.identifier.rawValue {
-        case "id":
-            textField.stringValue = model.id.uuidString
-
+      
         case "name":
             textField.stringValue = model.name
 

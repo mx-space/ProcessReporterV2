@@ -43,7 +43,7 @@ class ReportModel {
         set {
             integrationsRaw =
                 (try? JSONEncoder().encode(newValue)).flatMap { String(data: $0, encoding: .utf8) }
-                    ?? "[]"
+                ?? "[]"
         }
     }
 
@@ -76,7 +76,7 @@ class ReportModel {
         timeStamp = .now
         integrationsRaw =
             (try? JSONEncoder().encode(integrations)).flatMap { String(data: $0, encoding: .utf8) }
-                ?? "[]"
+            ?? "[]"
         mediaInfoRaw = mediaInfo
 
         if let mediaInfo = mediaInfo {
@@ -89,17 +89,24 @@ class ReportModel {
 }
 
 #if DEBUG
-extension ReportModel: CustomDebugStringConvertible {
-    var debugDescription: String {
-        return "Process Name: \(processName)\n" +
-            "Process Title: \(processInfoRaw?.title ?? "N/A")\n" +
-            "Artist: \(artist ?? "N/A")\n" +
-            "Media Name: \(mediaName ?? "N/A")\n" +
-            "Media Process Name: \(mediaProcessName ?? "N/A")\n" +
-            "Media Duration: \(mediaDuration?.description ?? "N/A")\n" +
-            "Media Elapsed Time: \(mediaElapsedTime?.description ?? "N/A")\n" +
-            "Timestamp: \(timeStamp)\n"
+    extension ReportModel: CustomDebugStringConvertible {
+        var debugDescription: String {
+            return "Process Name: \(processName)\n"
+                + "Process Title: \(processInfoRaw?.title ?? "N/A")\n"
+                + "Artist: \(artist ?? "N/A")\n" + "Media Name: \(mediaName ?? "N/A")\n"
+                + "Media Process Name: \(mediaProcessName ?? "N/A")\n"
+                + "Media Duration: \(mediaDuration?.description ?? "N/A")\n"
+                + "Media Elapsed Time: \(mediaElapsedTime?.description ?? "N/A")\n"
+                + "Timestamp: \(timeStamp)\n"
+        }
     }
-}
 
 #endif
+
+enum ReportModelV1: VersionedSchema {
+    static var versionIdentifier = Schema.Version(1, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        [ReportModel.self]
+    }
+}
