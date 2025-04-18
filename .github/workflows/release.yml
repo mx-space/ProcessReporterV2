@@ -37,7 +37,7 @@ jobs:
 
       - name: Create dmg
         run: |
-          hdiutil create -fs HFS+ -volname "ProcessReporter" -srcfolder build/Build/Products/Release/ProcessReporter.app build/ProcessReporter.dmg
+          hdiutil create -fs HFS+ -volname "ProcessReporter" -srcfolder build/Build/Products/Release/ProcessReporter.app build/ProcessReporter-${{ matrix.arch }}.dmg
 
       - name: Create Release
         id: create_release
