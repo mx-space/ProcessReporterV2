@@ -155,7 +155,8 @@ class PreferencesS3IconsViewController: NSViewController, SettingWindowProtocol 
 
         scrollView.snp.makeConstraints { make in
             make.top.equalTo(view).offset(46)
-            make.left.right.bottom.equalTo(view)
+            make.left.right.equalTo(view)
+            make.bottom.equalTo(view).inset(46)
         }
     }
 
@@ -374,7 +375,7 @@ class PreferencesS3IconsViewController: NSViewController, SettingWindowProtocol 
 
         closeButton.snp.makeConstraints { make in
             make.trailing.equalTo(view).offset(-16)
-            make.bottom.equalTo(view).offset(-16)
+            make.top.equalTo(scrollView.snp.bottom).offset(8)
         }
     }
 

@@ -139,7 +139,14 @@ class PreferencesIntegrationSlackView: IntegrationView {
         createRowDescription(attributedText: attributedText)
 
         createRowDescription(
-            text: "1. Go to Oauth - Scopes - User Token Scopes. \n2. Add `users.profile:write`")
+            text: """
+                1. Go to Oauth - Scopes - User Token Scopes.
+                2. Add `users.profile:write`
+                3. Install App to Workspace
+                4. Copy the Bot User OAuth Token, start with `xoxp-`
+                """
+        )
+
         // Api Key row
         createRow(
             leftView: NSTextField(labelWithString: "API Key"),
