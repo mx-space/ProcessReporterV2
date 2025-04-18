@@ -38,7 +38,7 @@ class PreferencesIntegrationSlackView: IntegrationView {
         button.image = emojiImage
         // Use .inline or .texturedRounded for a more compact look if desired
         button.bezelStyle = .inline
-        button.isBordered = false // Optional: remove border for tighter integration
+        button.isBordered = false  // Optional: remove border for tighter integration
         return button
     }()
 
@@ -131,7 +131,7 @@ class PreferencesIntegrationSlackView: IntegrationView {
             attributedText.addAttributes(
                 [
                     .link: URL(string: url)!,
-                    .foregroundColor: NSColor.linkColor, // 使用系统默认的链接颜色
+                    .foregroundColor: NSColor.linkColor,  // 使用系统默认的链接颜色
                 ], range: nsRange
             )
         }
@@ -139,7 +139,7 @@ class PreferencesIntegrationSlackView: IntegrationView {
         createRowDescription(attributedText: attributedText)
 
         createRowDescription(
-            text: "1. Go to Outh - Scopes - User Token Scopes. \n2. Add `users.profile:write`")
+            text: "1. Go to Oauth - Scopes - User Token Scopes. \n2. Add `users.profile:write`")
         // Api Key row
         createRow(
             leftView: NSTextField(labelWithString: "API Key"),
@@ -194,19 +194,19 @@ class PreferencesIntegrationSlackView: IntegrationView {
 
         createRowDescription(
             text:
-            """
-            Template String Usage:
-            1. {media_process_name}
-               - Current media process name
-            2. {media_name}
-               - Current media name
-            3. {artist}
-               - Current media artist
-            4. {media_name_artist}
-               - Current media name and artist
-            5. {process_name}
-               - Current process name
-            """
+                """
+                Template String Usage:
+                1. {media_process_name}
+                   - Current media process name
+                2. {media_name}
+                   - Current media name
+                3. {artist}
+                   - Current media artist
+                4. {media_name_artist}
+                   - Current media name and artist
+                5. {process_name}
+                   - Current process name
+                """
         )
 
         // Save button row
@@ -256,7 +256,8 @@ class PreferencesIntegrationSlackView: IntegrationView {
     }
 
     @objc private func openConditionEmojiModal() {
-        NSApplication.shared.keyWindow?.contentViewController?.presentAsSheet(EmojiConditionViewController())
+        NSApplication.shared.keyWindow?.contentViewController?.presentAsSheet(
+            EmojiConditionViewController())
     }
 }
 
@@ -296,12 +297,13 @@ class EmojiConditionViewController: NSViewController {
         spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
         spacer.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         buttonStack.addArrangedSubview(spacer)
-        buttonStack.addArrangedSubview({
-            let button = NSButton(title: "Cancel", target: self, action: #selector(cancel))
-            button.bezelStyle = .rounded
-            button.keyEquivalent = "\u{1b}"
-            return button
-        }())
+        buttonStack.addArrangedSubview(
+            {
+                let button = NSButton(title: "Cancel", target: self, action: #selector(cancel))
+                button.bezelStyle = .rounded
+                button.keyEquivalent = "\u{1b}"
+                return button
+            }())
         buttonStack.addArrangedSubview(saveButton)
 
         buttonStack.snp.makeConstraints { make in
