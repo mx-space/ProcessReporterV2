@@ -9,7 +9,7 @@ import Foundation
 
 protocol DictionaryConvertible {
     func toDictionary() -> [String: Any]
-    static func fromDictionary(_ dict: [String: Any]) -> Self
+    static func fromDictionary(_ dict: Any) -> Self
 }
 
 protocol DictionaryConvertibleDelegate {
