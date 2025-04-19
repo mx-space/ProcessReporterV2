@@ -11,6 +11,13 @@ extension PreferencesIntegrationSlackView {
 		private var isEditing = false
 		private var editingIndex: Int?
 		private var conditions: [EmojiConditionList.EmojiCondition] = []
+		private var itemViews: [ConditionFormItemView] = []
+		private var draggedView: ConditionFormItemView?
+		private var draggedIndex: Int?
+		private var dropIndicatorView: NSView?
+		private var eventMonitor: Any?
+		private var draggedCloneView: NSView?
+		private var dragOffset: CGFloat = 0
 
 		// MARK: - UI Components
 
@@ -92,14 +99,28 @@ extension PreferencesIntegrationSlackView {
 				subview.removeFromSuperview()
 			}
 
+			// Reset stored item views
+			itemViews.removeAll()
+
 			var previousItem: ConditionFormItemView?
 			for (index, condition) in conditions.enumerated() {
 				let itemView = ConditionFormItemView(initialValue: condition)
+				itemView.index = index
 				contentView.addSubview(itemView)
+				itemViews.append(itemView)
 
 				// Set delete handler
 				itemView.onDelete = { [weak self] in
 					self?.removeCondition(at: index)
+				}
+
+				// Set drag handlers
+				itemView.onDragStart = { [weak self] view in
+					self?.handleDragStart(view)
+				}
+
+				itemView.onDragEnded = { [weak self] view in
+					self?.handleDragEnd(view)
 				}
 
 				itemView.snp.makeConstraints { make in
@@ -114,6 +135,149 @@ extension PreferencesIntegrationSlackView {
 				itemView.sizeToFit()
 				previousItem = itemView
 			}
+		}
+
+		private func handleDragStart(_ view: ConditionFormItemView) {
+			draggedView = view
+			draggedIndex = view.index
+
+			// Calculate drag offset
+			let localPoint = view.convert(NSEvent.mouseLocation, from: nil)
+			dragOffset = localPoint.y
+
+			// Create a clone/snapshot of the view for dragging
+			let cloneView = NSImageView()
+			cloneView.image = view.snapshot()
+			cloneView.frame = view.frame
+			cloneView.alphaValue = 0.9
+			cloneView.wantsLayer = true
+			cloneView.layer?.shadowOpacity = 0.8
+			cloneView.layer?.shadowRadius = 8
+			cloneView.layer?.shadowOffset = CGSize(width: 0, height: 2)
+			contentView.addSubview(cloneView)
+			draggedCloneView = cloneView
+
+			// Semi-hide the original
+			view.alphaValue = 0.3
+
+			// Create drop indicator view if needed
+			if dropIndicatorView == nil {
+				let indicator = NSView()
+				indicator.wantsLayer = true
+				indicator.layer?.backgroundColor = NSColor.selectedControlColor.cgColor
+				indicator.layer?.cornerRadius = 2
+				contentView.addSubview(indicator)
+				dropIndicatorView = indicator
+				indicator.isHidden = true
+			}
+
+			// Start tracking mouse events for dragging
+			eventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged, .leftMouseUp]) { [weak self] event in
+				self?.handleMouseDrag(with: event)
+				return event
+			}
+		}
+
+		private func handleMouseDrag(with event: NSEvent) {
+			guard let draggedView = draggedView,
+			      let draggedIndex = draggedIndex,
+			      let dropIndicator = dropIndicatorView,
+			      let draggedClone = draggedCloneView else { return }
+
+			// Convert event point to view coordinates
+			let point = contentView.convert(event.locationInWindow, from: nil)
+
+			// Update dragged clone position
+			draggedClone.frame.origin.y = point.y - dragOffset
+			// Hide drop indicator by default
+			dropIndicator.isHidden = true
+
+			// Find which item view we're hovering over
+			var targetIndex: Int?
+			for (index, itemView) in itemViews.enumerated() {
+				if index != draggedIndex &&
+					point.y >= itemView.frame.minY &&
+					point.y <= itemView.frame.maxY
+				{
+					// Show drop indicator
+					showDropIndicator(at: index)
+					targetIndex = index
+					break
+				}
+			}
+
+			// If mouse is released (button up), perform the swap
+			if event.type == .leftMouseUp {
+				NSAnimationContext.runAnimationGroup { context in
+					context.duration = 0.3
+
+					if let targetIndex = targetIndex {
+						moveItem(from: draggedIndex, to: targetIndex)
+					} else {
+						// If not dropped on a valid position, reset the layout
+						updateItems()
+					}
+
+					// End the drag operation
+					handleDragEnd(draggedView)
+				}
+			}
+		}
+
+		private func moveItem(from fromIndex: Int, to toIndex: Int) {
+			guard fromIndex != toIndex,
+			      conditions.indices.contains(fromIndex),
+			      conditions.indices.contains(toIndex) else { return }
+
+			// Get the condition to move
+			let condition = conditions.remove(at: fromIndex)
+
+			// Insert at the target position
+			conditions.insert(condition, at: toIndex)
+
+			// Update the views
+			updateItems()
+		}
+
+		private func showDropIndicator(at index: Int) {
+			guard let indicator = dropIndicatorView,
+			      itemViews.indices.contains(index) else { return }
+
+			let targetView = itemViews[index]
+
+			// Show indicator above or below based on dragged index
+			let isDraggingDown = draggedIndex! < index
+
+			// Position indicator
+			indicator.isHidden = false
+			indicator.frame = NSRect(
+				x: targetView.frame.minX,
+				y: isDraggingDown ? targetView.frame.maxY - 2 : targetView.frame.minY - 2,
+				width: targetView.frame.width,
+				height: 4
+			)
+		}
+
+		private func handleDragEnd(_ view: ConditionFormItemView) {
+			// Restore original appearance
+			view.alphaValue = 1.0
+
+			// Remove the clone view
+			draggedCloneView?.removeFromSuperview()
+			draggedCloneView = nil
+
+			// Hide drop indicator
+			dropIndicatorView?.isHidden = true
+
+			// Stop tracking mouse movement
+			if let monitor = eventMonitor {
+				NSEvent.removeMonitor(monitor)
+				eventMonitor = nil
+			}
+
+			// Reset drag state
+			draggedView = nil
+			draggedIndex = nil
 		}
 
 		private func removeCondition(at index: Int) {
@@ -226,6 +390,26 @@ private class ConditionFormItemView: NSView {
 		return view
 	}()
 
+	private lazy var dragHandle: NSButton = {
+		let button = NSButton()
+		button.image = NSImage(systemSymbolName: "arrow.up.and.down.circle", accessibilityDescription: "Drag to reorder")
+		button.bezelStyle = .inline
+		button.isBordered = false
+		button.isEnabled = true
+
+		// Add hover effect
+		button.trackingAreas.forEach { button.removeTrackingArea($0) }
+		let trackingArea = NSTrackingArea(
+			rect: button.bounds,
+			options: [.mouseEnteredAndExited, .activeAlways],
+			owner: button,
+			userInfo: nil
+		)
+		button.addTrackingArea(trackingArea)
+
+		return button
+	}()
+
 	private lazy var ifLabel: NSTextField = {
 		let label = NSTextField(labelWithString: "If")
 		return label
@@ -296,7 +480,10 @@ private class ConditionFormItemView: NSView {
 		return button
 	}()
 
+	var index: Int = 0
 	var onDelete: (() -> Void)?
+	var onDragStart: ((ConditionFormItemView) -> Void)?
+	var onDragEnded: ((ConditionFormItemView) -> Void)?
 
 	@objc private func deleteCondition() {
 		onDelete?()
@@ -327,6 +514,7 @@ private class ConditionFormItemView: NSView {
 
 	init(initialValue: EmojiConditionList.EmojiCondition? = nil) {
 		super.init(frame: .zero)
+
 		setupUI()
 
 		if let initialValue = initialValue {
@@ -397,6 +585,7 @@ private class ConditionFormItemView: NSView {
 			make.edges.equalToSuperview()
 		}
 
+		conditionContainer.addSubview(dragHandle)
 		conditionContainer.addSubview(ifLabel)
 		conditionContainer.addSubview(fieldPopup)
 		conditionContainer.addSubview(conditionPopup)
@@ -410,6 +599,13 @@ private class ConditionFormItemView: NSView {
 			make.left.right.equalToSuperview().inset(20)
 		}
 
+		dragHandle.snp.makeConstraints { make in
+			make.bottom.equalTo(deleteButton)
+			make.right.equalTo(deleteButton.snp.left).offset(-8)
+			make.width.equalTo(20)
+			make.height.equalTo(24)
+		}
+
 		ifLabel.snp.makeConstraints { make in
 			make.left.equalToSuperview()
 			make.bottom.equalTo(fieldPopup).offset(-4)
@@ -418,14 +614,14 @@ private class ConditionFormItemView: NSView {
 		fieldPopup.snp.makeConstraints { make in
 			make.top.equalToSuperview()
 			make.left.equalTo(ifLabel.snp.right).offset(8)
-			make.width.equalTo(140)
+			make.width.equalTo(200)
 			make.height.equalTo(24)
 		}
 
 		conditionPopup.snp.makeConstraints { make in
 			make.top.equalToSuperview()
 			make.left.equalTo(fieldPopup.snp.right).offset(8)
-			make.width.equalTo(140)
+			make.width.equalTo(100)
 			make.height.equalTo(24)
 		}
 
@@ -466,6 +662,42 @@ private class ConditionFormItemView: NSView {
 			make.right.equalToSuperview().offset(-18)
 			make.size.equalTo(24)
 		}
+
+		// Set up drag and drop
+		setupDragAndDrop()
+	}
+
+	private func setupDragAndDrop() {
+		let dragGesture = NSPanGestureRecognizer(target: self, action: #selector(handleDragGesture(_:)))
+		dragHandle.addGestureRecognizer(dragGesture)
+	}
+
+	@objc private func handleDragGesture(_ gestureRecognizer: NSPanGestureRecognizer) {
+		switch gestureRecognizer.state {
+		case .began:
+			// Begin drag
+			dragHandle.alphaValue = 0.7
+			onDragStart?(self)
+		case .changed:
+			// Update during drag - don't need to do anything here as the controller will handle reordering
+			break
+		case .ended, .cancelled:
+			// End drag
+			dragHandle.alphaValue = 1.0
+			onDragEnded?(self)
+		default:
+			break
+		}
+	}
+
+	func snapshot() -> NSImage {
+		let image = NSImage(size: bounds.size)
+		image.lockFocus()
+		if let context = NSGraphicsContext.current {
+			layer?.render(in: context.cgContext)
+		}
+		image.unlockFocus()
+		return image
 	}
 
 	@available(*, unavailable)
